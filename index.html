@@ -138,6 +138,12 @@
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
+img {
+     -webkit-print-color-adjust: exact !important;
+     print-color-adjust: exact !important;
+     visibility: visible !important;
+     opacity: 1 !important;
+   }
       .no-print {
         display: none !important;
       }
@@ -1185,16 +1191,38 @@
         photos: {}
       };
     }
-function printAndExportPdf() {
-  syncSignatureDatesToToday();
-  setTimeout(() => {
-    window.print();
-  }, 100);
-}
+// Fungsi khusus untuk tombol Cetak / Simpan PDF
+    function printAndExportPdf() {
+      syncSignatureDatesToToday();
 
-window.addEventListener('beforeprint', () => {
-  syncSignatureDatesToToday();
-});
+      // Pastikan tanda tangan & cap bawaan tetap aktif jika belum diganti manual
+      if (!appState.sig_tech_img) appState.sig_tech_img = DEFAULT_TECH_SIGNATURE_PNG;
+      if (!appState.sig_pm_img) appState.sig_pm_img = DEFAULT_PM_STAMP_SIG_PNG;
+      renderPreview();
+
+      // Ubah judul halaman sementara agar nama file PDF otomatis menjadi "DOC ATP NMS SINERGI - [SITE ID]"
+      const originalTitle = document.title;
+      const cleanSiteId = (appState.siteIdTp || 'SITE').trim().replace(/[\\/:*?"<>|]/g, '_');
+      document.title = `DOC ATP NMS SINERGI - ${cleanSiteId}`;
+
+      setTimeout(() => {
+        window.print();
+        setTimeout(() => {
+          document.title = originalTitle;
+        }, 500);
+      }, 120);
+    }
+
+    // Jika user menekan Ctrl+P langsung di keyboard
+    window.addEventListener('beforeprint', () => {
+      syncSignatureDatesToToday();
+      const cleanSiteId = (appState.siteIdTp || 'SITE').trim().replace(/[\\/:*?"<>|]/g, '_');
+      document.title = `DOC ATP NMS SINERGI - ${cleanSiteId}`;
+    });
+
+    window.addEventListener('afterprint', () => {
+      document.title = 'FORM ATP CHECK INTEGRASI NMS — Input & Export Excel';
+    });
 
     // =========================================================================
     // 2. GENERATOR TANDA TANGAN & CAP PERUSAHAAN BAWAAN (CANVAS PNG)
@@ -2045,7 +2073,7 @@ window.addEventListener('beforeprint', () => {
       const s = appState;
 
       const techSigSrc = s.sig_tech_img || DEFAULT_TECH_SIGNATURE_PNG;
-      const pmSigSrc = s.sig_pm_img || DEFAULT_PM_STAMP_SIG_PNG;
+const pmSigSrc = s.sig_pm_img || DEFAULT_PM_STAMP_SIG_PNG;
 
       // ---------------- HALAMAN 1 ----------------
       const page1Html = `
@@ -3161,9 +3189,8 @@ window.addEventListener('beforeprint', () => {
           type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         });
 
-        const safeSiteId = (s.siteIdTp || 'SITE').replace(/[^a-zA-Z0-9-_]/g, '_');
-        const safeSiteName = (s.siteNameTp || 'ATP_NMS').replace(/[^a-zA-Z0-9-_]/g, '_');
-        saveAs(blob, `DOC_ATP_NMS_${safeSiteId}_${safeSiteName}.xlsx`);
+        const cleanSiteId = (s.siteIdTp || 'SITE').trim().replace(/[\\/:*?"<>|]/g, '_');
+     saveAs(blob, `DOC ATP NMS SINERGI - ${cleanSiteId}.xlsx`);
 
         showToast('File Excel (.xlsx) berhasil di-export! Tanda tangan, cap & foto 100% center.', 'success');
       } catch (err) {
