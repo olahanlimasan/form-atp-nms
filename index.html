@@ -269,8 +269,15 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div class="lg:col-span-2">
-            <label class="block text-xs font-medium text-slate-300 mb-1.5">Nomor Form (`No.`)</label>
-            <input type="text" data-field="formNo" placeholder="130/ Rectifier / Integrasi NMS / PTI / 06 / 2026" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm text-white outline-none transition" />
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Nomor Form (`No.`) <span class="text-[11px] text-amber-400/90 font-normal">(Input angka manual, teks & garis miring terkunci)</span></label>
+            <div class="w-full px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700/80 focus-within:border-amber-400 focus-within:ring-1 focus-within:ring-amber-400 text-sm text-white flex flex-wrap items-center gap-1.5 transition">
+              <input type="text" id="formNo_num1" value="130" oninput="syncFormNoParts()" placeholder="130" aria-label="Nomor Urut" class="w-16 px-2 py-1 rounded-lg bg-slate-900 border border-amber-500/50 focus:border-amber-400 text-center font-semibold text-amber-300 outline-none" />
+              <span class="text-slate-300 font-medium select-none">/ Rectifier / Integrasi NMS / PTI /</span>
+              <input type="text" id="formNo_num2" value="06" oninput="syncFormNoParts()" placeholder="06" aria-label="Bulan" class="w-14 px-2 py-1 rounded-lg bg-slate-900 border border-amber-500/50 focus:border-amber-400 text-center font-semibold text-amber-300 outline-none" />
+              <span class="text-slate-300 font-medium select-none">/</span>
+              <input type="text" id="formNo_num3" value="2026" oninput="syncFormNoParts()" placeholder="2026" aria-label="Tahun" class="w-20 px-2 py-1 rounded-lg bg-slate-900 border border-amber-500/50 focus:border-amber-400 text-center font-semibold text-amber-300 outline-none" />
+            </div>
+            <input type="hidden" id="formNo_hidden" data-field="formNo" value="130/ Rectifier / Integrasi NMS / PTI / 06 / 2026" />
           </div>
 
           <div>
@@ -1046,6 +1053,9 @@
     function getDefaultState() {
       return {
         formNo: '130/ Rectifier / Integrasi NMS / PTI / 06 / 2026',
+        formNo_num1: '130',
+        formNo_num2: '06',
+        formNo_num3: '2026',
         installDate: '19-May-26',
         siteIdTp: 'SUL-SN-MRS1-0001',
         siteNameTp: 'MetroE Maros Kota',
@@ -1390,6 +1400,41 @@
       });
     }
 
+    function syncFormNoParts() {
+      const n1El = document.getElementById('formNo_num1');
+      const n2El = document.getElementById('formNo_num2');
+      const n3El = document.getElementById('formNo_num3');
+      if (!n1El || !n2El || !n3El) return;
+
+      const n1 = n1El.value.trim();
+      const n2 = n2El.value.trim();
+      const n3 = n3El.value.trim();
+
+      appState.formNo_num1 = n1;
+      appState.formNo_num2 = n2;
+      appState.formNo_num3 = n3;
+      appState.formNo = `${n1}/ Rectifier / Integrasi NMS / PTI / ${n2} / ${n3}`;
+
+      const hiddenEl = document.getElementById('formNo_hidden');
+      if (hiddenEl) hiddenEl.value = appState.formNo;
+    }
+
+    function populateFormNoInputs() {
+      const full = appState.formNo || '130/ Rectifier / Integrasi NMS / PTI / 06 / 2026';
+      const match = full.match(/^\s*([^/]*?)\s*\/\s*Rectifier\s*\/\s*Integrasi NMS\s*\/\s*PTI\s*\/\s*([^/]*?)\s*\/\s*(.*?)\s*$/i);
+      const n1 = appState.formNo_num1 !== undefined && appState.formNo_num1 !== '' ? appState.formNo_num1 : (match ? match[1] : '130');
+      const n2 = appState.formNo_num2 !== undefined && appState.formNo_num2 !== '' ? appState.formNo_num2 : (match ? match[2] : '06');
+      const n3 = appState.formNo_num3 !== undefined && appState.formNo_num3 !== '' ? appState.formNo_num3 : (match ? match[3] : '2026');
+
+      const n1El = document.getElementById('formNo_num1');
+      const n2El = document.getElementById('formNo_num2');
+      const n3El = document.getElementById('formNo_num3');
+      if (n1El) n1El.value = n1;
+      if (n2El) n2El.value = n2;
+      if (n3El) n3El.value = n3;
+      syncFormNoParts();
+    }
+
     function syncStateToInputs() {
       document.querySelectorAll('[data-field]').forEach(el => {
         const field = el.getAttribute('data-field');
@@ -1399,6 +1444,8 @@
           el.value = appState[field] !== undefined ? appState[field] : '';
         }
       });
+
+      populateFormNoInputs();
 
       [...PHOTO_SLOTS_P2, ...PHOTO_SLOTS_P3].forEach(slot => {
         const titleInput = document.getElementById(`title-input-${slot.id}`);
@@ -1471,6 +1518,10 @@
           blank.sig_pm_img = DEFAULT_PM_STAMP_SIG_PNG;
           blank.sig_pti_name = 'Tedhi Indra Kusuma';
           blank.sig_iforte_name = 'Purwanto';
+          blank.formNo_num1 = '';
+          blank.formNo_num2 = '';
+          blank.formNo_num3 = '';
+          blank.formNo = '/ Rectifier / Integrasi NMS / PTI /  / ';
           blank.slotTitles = {};
           blank.photos = {};
 
