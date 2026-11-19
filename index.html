@@ -123,14 +123,28 @@
       display: block;
     }
 
-    /* Print Styles agar Cetak / Simpan PDF bersih 3 halaman A4 */
+    /* Print Styles agar Cetak / Simpan PDF bersih 3 halaman A4 tanpa URL/Tanggal/Nomor Halaman browser */
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+
     @media print {
-      body {
+      html, body {
         background: #ffffff !important;
         color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
       .no-print {
         display: none !important;
+      }
+      main {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
       }
       #preview-container {
         padding: 0 !important;
@@ -141,14 +155,16 @@
       .a4-sheet {
         box-shadow: none !important;
         margin: 0 !important;
-        width: 100% !important;
-        min-height: auto !important;
+        width: 210mm !important;
+        min-height: 296mm !important;
         page-break-after: always;
+        break-after: page;
         border-radius: 0 !important;
-        padding: 6mm 8mm !important;
+        padding: 10mm 11mm !important;
       }
       .a4-sheet:last-child {
         page-break-after: auto;
+        break-after: auto;
       }
     }
   </style>
