@@ -1,0 +1,3119 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FORM ATP CHECK INTEGRASI NMS — Input & Export Excel</title>
+
+  <!-- Google Fonts: Inter & Poppins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Poppins', 'sans-serif'],
+          },
+          colors: {
+            slate: {
+              850: '#161e2e',
+              900: '#0f172a',
+              950: '#090d16',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- ExcelJS & FileSaver CDN untuk Export .xlsx dengan gambar center & styling presisi -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <!-- SheetJS (XLSX) CDN untuk Import Database Master Site (.xlsx / .xls / .csv) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #090d16;
+      color: #f1f5f9;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #f59e0b;
+    }
+
+    /* A4 Paper Simulation untuk Pratinjau Dokumen 3 Halaman */
+    .a4-sheet {
+      width: 210mm;
+      min-height: 297mm;
+      background: #ffffff;
+      color: #000000;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+      margin: 0 auto 28px auto;
+      padding: 9mm 10mm;
+      box-sizing: border-box;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 9px;
+      line-height: 1.25;
+      border-radius: 4px;
+    }
+
+    .atp-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .atp-table td, .atp-table th {
+      border: 1px solid #000000;
+      padding: 2.5px 4px;
+      vertical-align: middle;
+      word-wrap: break-word;
+    }
+    .bg-header-gray {
+      background-color: #e5e7eb !important;
+      font-weight: 700;
+    }
+    .bg-sig-yellow {
+      background-color: #ffff00 !important;
+      color: #000000 !important;
+      font-weight: 700;
+    }
+    .photo-box-cell {
+      height: 67mm;
+      text-align: center;
+      vertical-align: middle;
+      padding: 4px !important;
+      background: #ffffff;
+    }
+    .photo-box-inner {
+      width: 100%;
+      height: 64mm;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .photo-box-inner img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* Print Styles agar Cetak / Simpan PDF bersih 3 halaman A4 */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      #preview-container {
+        padding: 0 !important;
+        margin: 0 !important;
+        background: transparent !important;
+        overflow: visible !important;
+      }
+      .a4-sheet {
+        box-shadow: none !important;
+        margin: 0 !important;
+        width: 100% !important;
+        min-height: auto !important;
+        page-break-after: always;
+        border-radius: 0 !important;
+        padding: 6mm 8mm !important;
+      }
+      .a4-sheet:last-child {
+        page-break-after: auto;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 selection:bg-amber-500/30 selection:text-amber-200">
+
+  <!-- Toast Container (Menggantikan alert()) -->
+  <div id="toast-container" class="no-print fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+  <!-- Confirmation Modal (Menggantikan confirm()) -->
+  <div id="confirm-modal" class="no-print fixed inset-0 z-50 hidden items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+          <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+        </div>
+        <h3 id="confirm-title" class="font-display font-semibold text-lg text-white">Konfirmasi Tindakan</h3>
+      </div>
+      <p id="confirm-message" class="text-sm text-slate-300 mb-6 leading-relaxed">Apakah Anda yakin ingin melanjutkan?</p>
+      <div class="flex justify-end gap-3">
+        <button id="confirm-cancel" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition">Batal</button>
+        <button id="confirm-ok" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-semibold transition">Ya, Lanjutkan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Navbar -->
+  <header class="no-print sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+      <!-- Brand / Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 shadow-lg shadow-amber-500/20 shrink-0">
+          <i data-lucide="radio-tower" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="font-display font-bold text-base sm:text-lg text-white tracking-tight">FORM ATP CHECK INTEGRASI NMS</h1>
+            <span class="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Exact 3-Page Excel Export</span>
+          </div>
+          <p class="text-xs text-slate-400">Input Data Site, Checklist RTU & Dokumentasi Foto — Tanda Tangan & Foto 100% Center</p>
+        </div>
+      </div>
+
+      <!-- Global Quick Actions -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="openSiteDbModal()" class="px-3 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-sky-300 text-xs sm:text-sm font-medium transition flex items-center gap-2">
+          <i data-lucide="database" class="w-4 h-4"></i>
+          <span>Database Site (<span id="db-count-badge">0</span>)</span>
+        </button>
+
+        <button onclick="fillSampleData()" class="px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs sm:text-sm font-medium transition flex items-center gap-2">
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+          <span>Isi Contoh Data Maros Kota</span>
+        </button>
+
+        <button onclick="saveDraftToStorage()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs sm:text-sm font-medium transition flex items-center gap-2">
+          <i data-lucide="save" class="w-4 h-4 text-emerald-400"></i>
+          <span>Simpan Draft</span>
+        </button>
+
+        <button onclick="confirmResetForm()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-rose-950/60 border border-slate-700 hover:border-rose-700/60 text-slate-300 hover:text-rose-300 text-xs sm:text-sm font-medium transition flex items-center gap-2">
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+          <span>Reset</span>
+        </button>
+
+        <button onclick="exportToExcel()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-semibold text-xs sm:text-sm shadow-lg shadow-emerald-500/20 transition flex items-center gap-2">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+          <span>Export ke Excel (.xlsx)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 overflow-x-auto">
+      <nav class="flex space-x-1 border-t border-slate-800/80 pt-1" aria-label="Tabs">
+        <button onclick="switchTab(1)" id="tab-btn-1" class="tab-btn active px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-amber-400 text-amber-400 whitespace-nowrap flex items-center gap-2 transition">
+          <span class="w-5 h-5 rounded-full bg-amber-400/20 text-amber-300 text-xs flex items-center justify-center">1</span>
+          <span>Data Site, Checklist & Approval</span>
+        </button>
+        <button onclick="switchTab(2)" id="tab-btn-2" class="tab-btn px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap flex items-center gap-2 transition">
+          <span class="w-5 h-5 rounded-full bg-slate-800 text-slate-400 text-xs flex items-center justify-center">2</span>
+          <span>Upload 6 Foto Halaman 2</span>
+          <span id="badge-photo-p2" class="px-1.5 py-0.5 rounded-md bg-slate-800 text-[11px] text-slate-300">0/6</span>
+        </button>
+        <button onclick="switchTab(3)" id="tab-btn-3" class="tab-btn px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap flex items-center gap-2 transition">
+          <span class="w-5 h-5 rounded-full bg-slate-800 text-slate-400 text-xs flex items-center justify-center">3</span>
+          <span>Upload 6 Foto Halaman 3</span>
+          <span id="badge-photo-p3" class="px-1.5 py-0.5 rounded-md bg-slate-800 text-[11px] text-slate-300">0/6</span>
+        </button>
+        <button onclick="switchTab(4)" id="tab-btn-4" class="tab-btn px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 whitespace-nowrap flex items-center gap-2 transition">
+          <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs flex items-center justify-center">
+            <i data-lucide="eye" class="w-3 h-3"></i>
+          </span>
+          <span>Pratinjau 3 Halaman & Export</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+
+    <!-- ==================== TAB 1: DATA SITE, CHECKLIST & APPROVAL ==================== -->
+    <section id="tab-panel-1" class="tab-panel space-y-6">
+
+      <!-- Card 1: Informasi Site (Kiri & Kanan) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-800">
+          <div>
+            <h2 class="font-display font-semibold text-base sm:text-lg text-amber-400 flex items-center gap-2">
+              <i data-lucide="server" class="w-5 h-5"></i>
+              <span>1. Informasi Site & Perangkat RTU</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Otomatis tersinkronisasi ke blok Info Site Halaman 1 dan tabel SITE DATA pada Halaman 2 & 3.</p>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 self-start">Sheet 1, 2 & 3</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="lg:col-span-2">
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Nomor Form (`No.`)</label>
+            <input type="text" data-field="formNo" placeholder="130/ Rectifier / Integrasi NMS / PTI / 06 / 2026" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm text-white outline-none transition" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Install Date</label>
+            <input type="text" data-field="installDate" placeholder="19-May-26" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm text-white outline-none transition" />
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-medium text-amber-300">SITE ID TP / SITE ID PTI <span class="text-[11px] text-slate-400 font-normal">(Auto-Fill)</span></label>
+              <span id="site-match-status" class="text-[11px] text-emerald-400 hidden flex items-center gap-1">
+                <i data-lucide="check-circle-2" class="w-3 h-3"></i> Terhubung DB
+              </span>
+            </div>
+            <input type="text" id="input-siteIdTp" list="site-id-datalist" data-field="siteIdTp" oninput="handleSiteIdAutoFill(this.value)" onchange="handleSiteIdAutoFill(this.value)" placeholder="Ketik atau pilih SITE ID TP..." class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-amber-500/50 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm text-white font-semibold outline-none transition" />
+            <datalist id="site-id-datalist"></datalist>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">SITE NAME TP</label>
+            <input type="text" data-field="siteNameTp" placeholder="MetroE Maros Kota" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm text-white outline-none transition" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">SITE ID TENANT</label>
+            <input type="text" data-field="siteIdTenant" placeholder="SN-0034-T-S" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm text-white outline-none transition" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">IP ADDRESS</label>
+            <input type="text" data-field="ipAddress" placeholder="10.207.5.173" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm text-white outline-none transition" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">LONGITUDE (`LONG`)</label>
+            <input type="text" data-field="longitude" placeholder="119,57327" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm text-white outline-none transition" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">LATITUDE (`LAT`)</label>
+            <input type="text" data-field="latitude" placeholder="-4,99621" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm text-white outline-none transition" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">SN RTU (`SN`)</label>
+            <input type="text" data-field="snRtu" placeholder="TSM10IP01260311" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm text-white outline-none transition" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">No Sim Card</label>
+            <input type="text" data-field="simCard" placeholder="0811-1443-0107" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm text-white outline-none transition" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">PROVINCE / AREA</label>
+            <input type="text" data-field="province" placeholder="Sulawesi" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm text-white outline-none transition" />
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">ALAMAT SITE</label>
+            <input type="text" data-field="alamat" placeholder="Jl. Poros Maros - Pangkep Lingkungan Solojirang II, Kelurahan Turikale, Kecamatan Maros Baru, Kabupaten Maros" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm text-white outline-none transition" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Supplier Name (Hal. 2 & 3)</label>
+            <input type="text" data-field="supplierName" placeholder="PT BACH MULTI GLOBAL" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700/80 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-sm text-white outline-none transition" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Tabel Checklist KOMPONEN RTU (Poin 1-9) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-800">
+          <div>
+            <h2 class="font-display font-semibold text-base sm:text-lg text-amber-400 flex items-center gap-2">
+              <i data-lucide="check-square" class="w-5 h-5"></i>
+              <span>2. Checklist KOMPONEN RTU (Poin 1 – 9)</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Centang status OK (☑) atau NOK (☐) dan sesuaikan parameter pengukuran aktual.</p>
+          </div>
+          <button onclick="checkAllOk()" class="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-medium transition self-start flex items-center gap-1.5">
+            <i data-lucide="check-check" class="w-4 h-4"></i>
+            <span>Centang Semua OK</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- SISI KIRI: Poin 1 - 5 -->
+          <div class="space-y-4">
+            <!-- 1. Power Input -->
+            <div class="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-sm text-white">1. Power Input</span>
+                <label class="inline-flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
+                  <input type="checkbox" data-field="p1_header_chk" class="w-4 h-4 rounded accent-amber-500" />
+                  <span>Header Check (☑)</span>
+                </label>
+              </div>
+              <div class="grid grid-cols-12 gap-2 items-center pt-2 border-t border-slate-800/80">
+                <span class="col-span-5 text-xs text-slate-300">a. Cable Power RTU</span>
+                <input type="text" data-field="p1_a_status" value="BAIK" class="col-span-3 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white text-center" />
+                <div class="col-span-4 flex items-center justify-end gap-3 text-xs">
+                  <label class="inline-flex items-center gap-1 text-emerald-400 cursor-pointer">
+                    <input type="checkbox" data-field="p1_a_ok" class="ok-chk w-4 h-4 rounded accent-emerald-500" /> OK
+                  </label>
+                  <label class="inline-flex items-center gap-1 text-rose-400 cursor-pointer">
+                    <input type="checkbox" data-field="p1_a_nok" class="w-4 h-4 rounded accent-rose-500" /> NOK
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Controller RTU -->
+            <div class="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-sm text-white">2. Controller RTU</span>
+                <label class="inline-flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
+                  <input type="checkbox" data-field="p2_header_chk" class="w-4 h-4 rounded accent-amber-500" />
+                  <span>Header Check (☑)</span>
+                </label>
+              </div>
+              <div class="grid grid-cols-12 gap-2 items-center pt-2 border-t border-slate-800/80">
+                <span class="col-span-5 text-xs text-slate-300">a. LAN Cable to SMU</span>
+                <input type="text" data-field="p2_a_status" value="BAIK" class="col-span-3 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white text-center" />
+                <div class="col-span-4 flex items-center justify-end gap-3 text-xs">
+                  <label class="inline-flex items-center gap-1 text-emerald-400 cursor-pointer">
+                    <input type="checkbox" data-field="p2_a_ok" class="ok-chk w-4 h-4 rounded accent-emerald-500" /> OK
+                  </label>
+                  <label class="inline-flex items-center gap-1 text-rose-400 cursor-pointer">
+                    <input type="checkbox" data-field="p2_a_nok" class="w-4 h-4 rounded accent-rose-500" /> NOK
+                  </label>
+                </div>
+              </div>
+              <div class="grid grid-cols-12 gap-2 items-center">
+                <span class="col-span-5 text-xs text-slate-300">b. LAN Cable Internal RTU</span>
+                <input type="text" data-field="p2_b_status" value="BAIK" class="col-span-3 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white text-center" />
+                <div class="col-span-4 flex items-center justify-end gap-3 text-xs">
+                  <label class="inline-flex items-center gap-1 text-emerald-400 cursor-pointer">
+                    <input type="checkbox" data-field="p2_b_ok" class="ok-chk w-4 h-4 rounded accent-emerald-500" /> OK
+                  </label>
+                  <label class="inline-flex items-center gap-1 text-rose-400 cursor-pointer">
+                    <input type="checkbox" data-field="p2_b_nok" class="w-4 h-4 rounded accent-rose-500" /> NOK
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Antena -->
+            <div class="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-sm text-white">3. Antena</span>
+                <label class="inline-flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
+                  <input type="checkbox" data-field="p3_header_chk" class="w-4 h-4 rounded accent-amber-500" />
+                  <span>Header Check (☑)</span>
+                </label>
+              </div>
+              <div class="grid grid-cols-12 gap-2 items-center pt-2 border-t border-slate-800/80">
+                <span class="col-span-5 text-xs text-slate-300">a. Kondisi</span>
+                <input type="text" data-field="p3_a_status" value="BAIK" class="col-span-3 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white text-center" />
+                <div class="col-span-4 flex items-center justify-end gap-3 text-xs">
+                  <label class="inline-flex items-center gap-1 text-emerald-400 cursor-pointer">
+                    <input type="checkbox" data-field="p3_a_ok" class="ok-chk w-4 h-4 rounded accent-emerald-500" /> OK
+                  </label>
+                  <label class="inline-flex items-center gap-1 text-rose-400 cursor-pointer">
+                    <input type="checkbox" data-field="p3_a_nok" class="w-4 h-4 rounded accent-rose-500" /> NOK
+                  </label>
+                </div>
+              </div>
+              <div class="grid grid-cols-12 gap-2 items-center">
+                <span class="col-span-5 text-xs text-slate-300">b. Fungsi</span>
+                <input type="text" data-field="p3_b_status" value="BAIK" class="col-span-3 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white text-center" />
+                <div class="col-span-4 flex items-center justify-end gap-3 text-xs">
+                  <label class="inline-flex items-center gap-1 text-emerald-400 cursor-pointer">
+                    <input type="checkbox" data-field="p3_b_ok" class="ok-chk w-4 h-4 rounded accent-emerald-500" /> OK
+                  </label>
+                  <label class="inline-flex items-center gap-1 text-rose-400 cursor-pointer">
+                    <input type="checkbox" data-field="p3_b_nok" class="w-4 h-4 rounded accent-rose-500" /> NOK
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Rectifier Brand & 5. Batteray Brand -->
+            <div class="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
+              <span class="font-semibold text-sm text-white block">4. Rectifier & 5. Battery Specification</span>
+              <div class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800/80">
+                <div>
+                  <label class="block text-[11px] text-slate-400 mb-1">4. Rectifier Brand</label>
+                  <input type="text" data-field="rectifierBrand" placeholder="Fiberhome" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white" />
+                </div>
+                <div>
+                  <label class="block text-[11px] text-slate-400 mb-1">Module Quantity</label>
+                  <input type="text" data-field="moduleQty" placeholder="3" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white" />
+                </div>
+                <div>
+                  <label class="block text-[11px] text-slate-400 mb-1">5. Batteray Brand</label>
+                  <input type="text" data-field="batteryBrand" placeholder="Fiberhome" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white" />
+                </div>
+                <div>
+                  <label class="block text-[11px] text-slate-400 mb-1">Battery Capacity</label>
+                  <input type="text" data-field="batteryCap" placeholder="100Ah" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white" />
+                </div>
+                <div class="col-span-2">
+                  <label class="block text-[11px] text-slate-400 mb-1">Battery Quantity</label>
+                  <input type="text" data-field="batteryQty" placeholder="2" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SISI KANAN: Poin 6 - 9 -->
+          <div class="space-y-4">
+            <!-- 6, 7, 8 -->
+            <div class="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
+              <span class="font-semibold text-sm text-white block">Status Sistem Utama (Poin 6 – 8)</span>
+
+              <div class="grid grid-cols-12 gap-2 items-center pt-2 border-t border-slate-800/80">
+                <span class="col-span-5 text-xs font-medium text-slate-200">6. KONDISI RTU</span>
+                <input type="text" data-field="p6_status" value="BAIK" class="col-span-3 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white text-center" />
+                <div class="col-span-4 flex items-center justify-end gap-3 text-xs">
+                  <label class="inline-flex items-center gap-1 text-emerald-400 cursor-pointer">
+                    <input type="checkbox" data-field="p6_ok" class="ok-chk w-4 h-4 rounded accent-emerald-500" /> OK
+                  </label>
+                  <label class="inline-flex items-center gap-1 text-rose-400 cursor-pointer">
+                    <input type="checkbox" data-field="p6_nok" class="w-4 h-4 rounded accent-rose-500" /> NOK
+                  </label>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-12 gap-2 items-center">
+                <span class="col-span-5 text-xs font-medium text-slate-200">7. FUNGSI MONITORING</span>
+                <input type="text" data-field="p7_status" value="BAIK" class="col-span-3 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white text-center" />
+                <div class="col-span-4 flex items-center justify-end gap-3 text-xs">
+                  <label class="inline-flex items-center gap-1 text-emerald-400 cursor-pointer">
+                    <input type="checkbox" data-field="p7_ok" class="ok-chk w-4 h-4 rounded accent-emerald-500" /> OK
+                  </label>
+                  <label class="inline-flex items-center gap-1 text-rose-400 cursor-pointer">
+                    <input type="checkbox" data-field="p7_nok" class="w-4 h-4 rounded accent-rose-500" /> NOK
+                  </label>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-12 gap-2 items-center">
+                <span class="col-span-5 text-xs font-medium text-slate-200">8. SYSTEM POWER</span>
+                <input type="text" data-field="p8_status" value="BAIK" class="col-span-3 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white text-center" />
+                <div class="col-span-4 flex items-center justify-end gap-3 text-xs">
+                  <label class="inline-flex items-center gap-1 text-emerald-400 cursor-pointer">
+                    <input type="checkbox" data-field="p8_ok" class="ok-chk w-4 h-4 rounded accent-emerald-500" /> OK
+                  </label>
+                  <label class="inline-flex items-center gap-1 text-rose-400 cursor-pointer">
+                    <input type="checkbox" data-field="p8_nok" class="w-4 h-4 rounded accent-rose-500" /> NOK
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- 9. Pengukuran metring VS actual -->
+            <div class="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-sm text-white">9. Pengukuran metring VS actual</span>
+                <div class="flex items-center gap-2 text-xs text-slate-400">
+                  <label class="inline-flex items-center gap-1 cursor-pointer">
+                    <input type="checkbox" data-field="p9_header_ok" class="w-3.5 h-3.5 rounded accent-amber-500" /> OK
+                  </label>
+                  <label class="inline-flex items-center gap-1 cursor-pointer">
+                    <input type="checkbox" data-field="p9_header_nok" class="w-3.5 h-3.5 rounded accent-rose-500" /> NOK
+                  </label>
+                </div>
+              </div>
+
+              <!-- Volt AC -->
+              <div class="grid grid-cols-12 gap-2 items-center pt-2 border-t border-slate-800/80">
+                <div class="col-span-5 flex items-center gap-1.5">
+                  <input type="checkbox" data-field="p9_vac_lead" class="w-3.5 h-3.5 rounded accent-amber-500" />
+                  <input type="text" data-field="p9_vac_val" placeholder="226.36 V" class="w-full px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-amber-300 font-medium" />
+                </div>
+                <span class="col-span-2 text-[11px] text-slate-400">Volt AC</span>
+                <input type="text" data-field="p9_vac_status" value="SESUAI" class="col-span-2 px-1.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[11px] text-white text-center" />
+                <div class="col-span-3 flex items-center justify-end gap-2 text-xs">
+                  <label class="inline-flex items-center gap-1 text-emerald-400 cursor-pointer">
+                    <input type="checkbox" data-field="p9_vac_ok" class="ok-chk w-3.5 h-3.5 rounded accent-emerald-500" /> OK
+                  </label>
+                  <label class="inline-flex items-center gap-1 text-rose-400 cursor-pointer">
+                    <input type="checkbox" data-field="p9_vac_nok" class="w-3.5 h-3.5 rounded accent-rose-500" /> NOK
+                  </label>
+                </div>
+              </div>
+
+              <!-- Load AC -->
+              <div class="grid grid-cols-12 gap-2 items-center">
+                <div class="col-span-5 flex items-center gap-1.5">
+                  <span class="text-[11px] text-slate-400 shrink-0">Load AC</span>
+                  <input type="text" data-field="p9_lac_val" placeholder="1.13 A" class="w-full px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-amber-300 font-medium" />
+                </div>
+                <span class="col-span-2 text-[11px] text-slate-400">Ampere</span>
+                <input type="text" data-field="p9_lac_status" value="SESUAI" class="col-span-2 px-1.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[11px] text-white text-center" />
+                <div class="col-span-3 flex items-center justify-end gap-2 text-xs">
+                  <label class="inline-flex items-center gap-1 text-emerald-400 cursor-pointer">
+                    <input type="checkbox" data-field="p9_lac_ok" class="ok-chk w-3.5 h-3.5 rounded accent-emerald-500" /> OK
+                  </label>
+                  <label class="inline-flex items-center gap-1 text-rose-400 cursor-pointer">
+                    <input type="checkbox" data-field="p9_lac_nok" class="w-3.5 h-3.5 rounded accent-rose-500" /> NOK
+                  </label>
+                </div>
+              </div>
+
+              <!-- Volt DC -->
+              <div class="grid grid-cols-12 gap-2 items-center">
+                <div class="col-span-5 flex items-center gap-1.5">
+                  <input type="text" data-field="p9_vdc_val" placeholder="53.68 V" class="w-full px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-amber-300 font-medium" />
+                </div>
+                <span class="col-span-2 text-[11px] text-slate-400">Volt DC</span>
+                <input type="text" data-field="p9_vdc_status" value="SESUAI" class="col-span-2 px-1.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[11px] text-white text-center" />
+                <div class="col-span-3 flex items-center justify-end gap-2 text-xs">
+                  <label class="inline-flex items-center gap-1 text-emerald-400 cursor-pointer">
+                    <input type="checkbox" data-field="p9_vdc_ok" class="ok-chk w-3.5 h-3.5 rounded accent-emerald-500" /> OK
+                  </label>
+                  <label class="inline-flex items-center gap-1 text-rose-400 cursor-pointer">
+                    <input type="checkbox" data-field="p9_vdc_nok" class="w-3.5 h-3.5 rounded accent-rose-500" /> NOK
+                  </label>
+                </div>
+              </div>
+
+              <!-- Load DC -->
+              <div class="grid grid-cols-12 gap-2 items-center">
+                <div class="col-span-5 flex items-center gap-1.5">
+                  <input type="checkbox" data-field="p9_ldc_lead" class="w-3.5 h-3.5 rounded accent-amber-500" />
+                  <span class="text-[11px] text-slate-400 shrink-0">Load DC</span>
+                  <input type="text" data-field="p9_ldc_val" placeholder="71.3" class="w-full px-2 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs text-amber-300 font-medium" />
+                </div>
+                <span class="col-span-2 text-[11px] text-slate-400">Ampere</span>
+                <input type="text" data-field="p9_ldc_status" value="SESUAI" class="col-span-2 px-1.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-[11px] text-white text-center" />
+                <div class="col-span-3 flex items-center justify-end gap-2 text-xs">
+                  <label class="inline-flex items-center gap-1 text-emerald-400 cursor-pointer">
+                    <input type="checkbox" data-field="p9_ldc_ok" class="ok-chk w-3.5 h-3.5 rounded accent-emerald-500" /> OK
+                  </label>
+                  <label class="inline-flex items-center gap-1 text-rose-400 cursor-pointer">
+                    <input type="checkbox" data-field="p9_ldc_nok" class="w-3.5 h-3.5 rounded accent-rose-500" /> NOK
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: MONITORING RTU, ACCESSORIES & Status Monitoring (NMS) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl">
+        <div class="pb-4 mb-5 border-b border-slate-800">
+          <h2 class="font-display font-semibold text-base sm:text-lg text-amber-400 flex items-center gap-2">
+            <i data-lucide="plug-zap" class="w-5 h-5"></i>
+            <span>3. Monitoring RTU, Accessories & Status Monitoring (NMS)</span>
+          </h2>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Kiri: MONITORING RTU & ACCESSORIES -->
+          <div class="space-y-4">
+            <div class="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2.5">
+              <span class="font-semibold text-sm text-amber-300 block mb-2">MONITORING RTU</span>
+              <div id="monitoring-rtu-rows" class="space-y-2"></div>
+            </div>
+
+            <div class="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2.5">
+              <span class="font-semibold text-sm text-amber-300 block mb-2">ACCESSORIES</span>
+              <div id="accessories-rows" class="space-y-2"></div>
+            </div>
+          </div>
+
+          <!-- Kanan: Status Monitoring (NMS) -->
+          <div class="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3 h-fit">
+            <span class="font-semibold text-sm text-amber-300 block mb-2">Status Monitoring (NMS)</span>
+            <div class="space-y-2.5">
+              <label class="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 cursor-pointer">
+                <span class="text-xs sm:text-sm text-slate-200 font-medium">1. All Measurement</span>
+                <input type="checkbox" data-field="nms_1" class="ok-chk w-4 h-4 rounded accent-emerald-500" />
+              </label>
+              <label class="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 cursor-pointer">
+                <span class="text-xs sm:text-sm text-slate-200 font-medium">2. Rectifier Module</span>
+                <input type="checkbox" data-field="nms_2" class="ok-chk w-4 h-4 rounded accent-emerald-500" />
+              </label>
+              <label class="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 cursor-pointer">
+                <span class="text-xs sm:text-sm text-slate-200 font-medium">3. Battery</span>
+                <input type="checkbox" data-field="nms_3" class="ok-chk w-4 h-4 rounded accent-emerald-500" />
+              </label>
+              <label class="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 cursor-pointer">
+                <span class="text-xs sm:text-sm text-slate-200 font-medium">4. Alarm</span>
+                <input type="checkbox" data-field="nms_4" class="ok-chk w-4 h-4 rounded accent-emerald-500" />
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: Blok Tanda Tangan & Cap Perusahaan -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-800">
+          <div>
+            <h2 class="font-display font-semibold text-base sm:text-lg text-amber-400 flex items-center gap-2">
+              <i data-lucide="pen-tool" class="w-5 h-5"></i>
+              <span>4. Blok Tanda Tangan & Cap Perusahaan (100% Center di Excel)</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Tanda tangan Maruba Simangunsong & Cap BACH MULTI GLOBAL + TTD Pandu Dewantara otomatis tersemat center di setiap export.</p>
+          </div>
+          <button type="button" onclick="resetDefaultSignatures()" class="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-medium transition self-start flex items-center gap-1.5">
+            <i data-lucide="stamp" class="w-4 h-4"></i>
+            <span>Reset Tanda Tangan & Cap Bawaan</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Technician QC (RTU) -->
+          <div class="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2.5 flex flex-col justify-between">
+            <div class="space-y-2.5">
+              <div class="px-2.5 py-1 rounded-lg bg-[#ffff00] text-slate-950 text-xs font-bold text-center">Technician QC (RTU)</div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Nama Personel</label>
+                <input type="text" data-field="sig_tech_name" value="Maruba Simangunsong" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white font-semibold" />
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Preview Tanda Tangan (Center)</label>
+                <div class="h-24 rounded-lg bg-white border border-slate-600 flex items-center justify-center p-1.5 overflow-hidden">
+                  <img id="sig-preview-tech" src="" alt="TTD Technician QC" class="max-h-20 w-auto object-contain" />
+                </div>
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Tanggal</label>
+                <input type="text" data-field="sig_tech_date" value="19-May-26" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white" />
+              </div>
+            </div>
+            <div class="pt-2 border-t border-slate-800 flex items-center gap-1.5">
+              <input type="file" id="sig-file-tech" accept="image/*" class="hidden" onchange="handleSignatureUpload(event, 'tech')" />
+              <button type="button" onclick="document.getElementById('sig-file-tech').click()" class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 transition flex items-center justify-center gap-1">
+                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Ganti Gambar
+              </button>
+              <button type="button" onclick="restoreSingleSignature('tech')" title="Kembalikan TTD Maruba" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-[11px] text-amber-300 transition">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- PM BMG -->
+          <div class="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2.5 flex flex-col justify-between">
+            <div class="space-y-2.5">
+              <div class="px-2.5 py-1 rounded-lg bg-[#ffff00] text-slate-950 text-xs font-bold text-center">PM BMG</div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Nama Personel</label>
+                <input type="text" data-field="sig_pm_name" value="Pandu Dewantara" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white font-semibold" />
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Preview Cap BMG + TTD (Center)</label>
+                <div class="h-24 rounded-lg bg-white border border-slate-600 flex items-center justify-center p-1.5 overflow-hidden">
+                  <img id="sig-preview-pm" src="" alt="Cap & TTD PM BMG" class="max-h-20 w-auto object-contain" />
+                </div>
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Tanggal</label>
+                <input type="text" data-field="sig_pm_date" value="19-May-26" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white" />
+              </div>
+            </div>
+            <div class="pt-2 border-t border-slate-800 flex items-center gap-1.5">
+              <input type="file" id="sig-file-pm" accept="image/*" class="hidden" onchange="handleSignatureUpload(event, 'pm')" />
+              <button type="button" onclick="document.getElementById('sig-file-pm').click()" class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 transition flex items-center justify-center gap-1">
+                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Ganti Cap/TTD
+              </button>
+              <button type="button" onclick="restoreSingleSignature('pm')" title="Kembalikan Cap BMG + TTD" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-[11px] text-amber-300 transition">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- PTI PROJECT -->
+          <div class="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2.5 flex flex-col justify-between">
+            <div class="space-y-2.5">
+              <div class="px-2.5 py-1 rounded-lg bg-[#ffff00] text-slate-950 text-xs font-bold text-center">PTI PROJECT</div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Nama Personel</label>
+                <input type="text" data-field="sig_pti_name" value="Tedhi Indra Kusuma" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white font-semibold" />
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Tanda Tangan (Opsional)</label>
+                <div class="h-24 rounded-lg bg-white border border-slate-600 flex items-center justify-center p-1.5 overflow-hidden">
+                  <img id="sig-preview-pti" src="" alt="TTD PTI Project" class="max-h-20 w-auto object-contain hidden" />
+                  <span id="sig-empty-pti" class="text-[11px] text-slate-400 italic">Kosong (Sesuai Template)</span>
+                </div>
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Tanggal (Opsional)</label>
+                <input type="text" data-field="sig_pti_date" placeholder="" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white" />
+              </div>
+            </div>
+            <div class="pt-2 border-t border-slate-800 flex items-center gap-1.5">
+              <input type="file" id="sig-file-pti" accept="image/*" class="hidden" onchange="handleSignatureUpload(event, 'pti')" />
+              <button type="button" onclick="document.getElementById('sig-file-pti').click()" class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 transition flex items-center justify-center gap-1">
+                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Unggah TTD
+              </button>
+              <button type="button" onclick="clearOptionalSignature('pti')" title="Kosongkan" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-[11px] text-rose-300 transition">
+                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- IFORTE PROJECT -->
+          <div class="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2.5 flex flex-col justify-between">
+            <div class="space-y-2.5">
+              <div class="px-2.5 py-1 rounded-lg bg-[#ffff00] text-slate-950 text-xs font-bold text-center">IFORTE PROJECT</div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Nama Personel</label>
+                <input type="text" data-field="sig_iforte_name" value="Purwanto" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white font-semibold" />
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Tanda Tangan (Opsional)</label>
+                <div class="h-24 rounded-lg bg-white border border-slate-600 flex items-center justify-center p-1.5 overflow-hidden">
+                  <img id="sig-preview-iforte" src="" alt="TTD IFORTE Project" class="max-h-20 w-auto object-contain hidden" />
+                  <span id="sig-empty-iforte" class="text-[11px] text-slate-400 italic">Kosong (Sesuai Template)</span>
+                </div>
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Tanggal (Opsional)</label>
+                <input type="text" data-field="sig_iforte_date" placeholder="" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white" />
+              </div>
+            </div>
+            <div class="pt-2 border-t border-slate-800 flex items-center gap-1.5">
+              <input type="file" id="sig-file-iforte" accept="image/*" class="hidden" onchange="handleSignatureUpload(event, 'iforte')" />
+              <button type="button" onclick="document.getElementById('sig-file-iforte').click()" class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 transition flex items-center justify-center gap-1">
+                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Unggah TTD
+              </button>
+              <button type="button" onclick="clearOptionalSignature('iforte')" title="Kosongkan" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-[11px] text-rose-300 transition">
+                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button onclick="switchTab(2)" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-sm transition flex items-center gap-2">
+          <span>Lanjut ke Upload 6 Foto Halaman 2</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: UPLOAD 6 FOTO HALAMAN 2 ==================== -->
+    <section id="tab-panel-2" class="tab-panel hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-5 border-b border-slate-800">
+          <div>
+            <h2 class="font-display font-semibold text-base sm:text-lg text-amber-400 flex items-center gap-2">
+              <i data-lucide="camera" class="w-5 h-5"></i>
+              <span>ACCEPTANCE DOCUMENTATIONS — Halaman 2 (Site & Material)</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Unggah 6 foto dokumentasi (drag & drop atau klik). Semua foto akan ditempatkan 100% center di dalam kotak Excel.</p>
+          </div>
+          <button onclick="generateDummyPhotos(2)" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 text-xs font-medium transition flex items-center gap-2 self-start">
+            <i data-lucide="image" class="w-4 h-4"></i>
+            <span>Isi Foto Simulasi</span>
+          </button>
+        </div>
+
+        <div id="photo-grid-p2" class="grid grid-cols-1 md:grid-cols-2 gap-5"></div>
+      </div>
+
+      <div class="flex justify-between">
+        <button onclick="switchTab(1)" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm transition flex items-center gap-2">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
+          <span>Kembali ke Halaman 1</span>
+        </button>
+        <button onclick="switchTab(3)" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-sm transition flex items-center gap-2">
+          <span>Lanjut ke Upload 6 Foto Halaman 3</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: UPLOAD 6 FOTO HALAMAN 3 ==================== -->
+    <section id="tab-panel-3" class="tab-panel hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-5 border-b border-slate-800">
+          <div>
+            <h2 class="font-display font-semibold text-base sm:text-lg text-amber-400 flex items-center gap-2">
+              <i data-lucide="monitor" class="w-5 h-5"></i>
+              <span>ACCEPTANCE DOCUMENTATIONS — Halaman 3 (Instalasi & Capture NMS)</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Unggah 6 foto progres instalasi RTU dan screenshot NMS Online / Alarm sesuai template.</p>
+          </div>
+          <button onclick="generateDummyPhotos(3)" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 text-xs font-medium transition flex items-center gap-2 self-start">
+            <i data-lucide="image" class="w-4 h-4"></i>
+            <span>Isi Foto Simulasi</span>
+          </button>
+        </div>
+
+        <div id="photo-grid-p3" class="grid grid-cols-1 md:grid-cols-2 gap-5"></div>
+      </div>
+
+      <div class="flex justify-between">
+        <button onclick="switchTab(2)" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm transition flex items-center gap-2">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
+          <span>Kembali ke Halaman 2</span>
+        </button>
+        <button onclick="switchTab(4)" class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-sm transition flex items-center gap-2">
+          <span>Lihat Pratinjau 3 Halaman & Export</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: PRATINJAU 3 HALAMAN A4 & EXPORT ==================== -->
+    <section id="tab-panel-4" class="tab-panel hidden space-y-6">
+      <!-- Action Bar Pratinjau -->
+      <div class="no-print bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+        <div>
+          <h2 class="font-display font-semibold text-base sm:text-lg text-white flex items-center gap-2">
+            <i data-lucide="file-check-2" class="w-5 h-5 text-emerald-400"></i>
+            <span>Pratinjau Dokumen 3 Halaman A4 (Exact Template Match)</span>
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Tanda tangan, cap perusahaan, dan seluruh 12 foto otomatis terpusat presisi (horizontal & vertikal) di setiap kotak Excel.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+          <button onclick="window.print()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs sm:text-sm font-medium transition flex items-center gap-2">
+            <i data-lucide="printer" class="w-4 h-4 text-amber-400"></i>
+            <span>Cetak / Simpan PDF</span>
+          </button>
+          <button onclick="exportToExcel()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-emerald-500/25 transition flex items-center gap-2">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            <span>Export ke Excel (.xlsx)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Container Kertas A4 -->
+      <div id="preview-container" class="overflow-x-auto pb-8"></div>
+    </section>
+
+  </main>
+
+  <footer class="no-print border-t border-slate-800/80 py-4 px-6 text-center text-xs text-slate-500">
+    FORM ATP CHECK INTEGRASI NMS &bull; 3-Page ExcelJS Precision Generator (Centered Signatures & Photos)
+  </footer>
+
+  <!-- Modal Kelola Database Master Site -->
+  <div id="site-db-modal" class="no-print fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full p-6 shadow-2xl max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400">
+            <i data-lucide="database" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-display font-semibold text-lg text-white">Database Master Site (Auto-Fill)</h3>
+            <p class="text-xs text-slate-400">Import daftar site dari Excel/CSV agar cukup ketik SITE ID TP dan kolom lain otomatis terisi.</p>
+          </div>
+        </div>
+        <button onclick="closeSiteDbModal()" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Bar Import & Download Template -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col justify-between gap-2">
+          <span class="text-xs font-semibold text-sky-300">1. Import File Master Site (.xlsx / .csv)</span>
+          <p class="text-[11px] text-slate-400">Kolom otomatis dikenali: SITE ID TP, SITE NAME, TENANT, IP, LONG, LAT, SN RTU, SIM CARD, PROVINCE, ALAMAT, SUPPLIER.</p>
+          <input type="file" id="import-site-db-file" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleImportSiteDatabase(event)" />
+          <button onclick="document.getElementById('import-site-db-file').click()" class="w-full py-2 px-3 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold text-xs transition flex items-center justify-center gap-2">
+            <i data-lucide="upload" class="w-4 h-4"></i>
+            <span>Pilih File Excel / CSV Master Site</span>
+          </button>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col justify-between gap-2">
+          <span class="text-xs font-semibold text-amber-300">2. Unduh Contoh Template Master Site</span>
+          <p class="text-[11px] text-slate-400">Belum punya format Excel-nya? Unduh template master site siap pakai lalu isi daftar site proyek Anda.</p>
+          <button onclick="downloadMasterSiteTemplate()" class="w-full py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-semibold text-xs transition flex items-center justify-center gap-2">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Download Template_Master_Site.xlsx</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Pencarian & Tabel Daftar Site Tersimpan -->
+      <div class="flex items-center justify-between gap-2 mb-2">
+        <input type="text" id="search-site-db" oninput="renderSiteDbTable(this.value)" placeholder="Cari SITE ID TP atau Nama Site..." class="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white outline-none focus:border-sky-400" />
+        <button onclick="clearSiteDatabase()" class="px-3 py-2 rounded-xl bg-rose-950/70 hover:bg-rose-900 border border-rose-800/60 text-rose-300 text-xs font-medium transition">
+          Hapus Semua DB
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-auto border border-slate-800 rounded-xl bg-slate-950">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead class="bg-slate-900 text-slate-300 sticky top-0">
+            <tr>
+              <th class="p-2.5 border-b border-slate-800">SITE ID TP</th>
+              <th class="p-2.5 border-b border-slate-800">SITE NAME TP</th>
+              <th class="p-2.5 border-b border-slate-800">IP ADDRESS</th>
+              <th class="p-2.5 border-b border-slate-800">SN RTU</th>
+              <th class="p-2.5 border-b border-slate-800 text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="site-db-tbody" class="divide-y divide-slate-800/70 text-slate-300"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. KONFIGURASI STRUKTUR DATA & SLOT FOTO SESUAI TEMPLATE PDF
+    // =========================================================================
+    const STORAGE_KEY = 'atp_nms_integrasi_draft_v2';
+    const SITE_DB_STORAGE_KEY = 'atp_nms_master_site_db_v1';
+
+    // Database Master Site Bawaan (Bisa ditambah/timpa via Import Excel/CSV)
+    const INITIAL_SAMPLE_SITE_DB = [
+      {
+        siteIdTp: 'SUL-SN-MRS1-0001',
+        siteNameTp: 'MetroE Maros Kota',
+        siteIdTenant: 'SN-0034-T-S',
+        ipAddress: '10.207.5.173',
+        longitude: '119,57327',
+        latitude: '-4,99621',
+        snRtu: 'TSM10IP01260311',
+        simCard: '0811-1443-0107',
+        province: 'Sulawesi',
+        alamat: 'Jl. Poros Maros - Pangkep Lingkungan Solojirang II, Kelurahan Turikale, Kecamatan Maros Baru, Kabupaten Maros',
+        supplierName: 'PT BACH MULTI GLOBAL'
+      }
+    ];
+    let masterSiteDb = [];
+
+    const PHOTO_SLOTS_P2 = [
+      { id: 'p2_1', title: 'Site Over View 1', hint: 'Foto tampak depan pagar/gerbang site beserta koordinat GPS' },
+      { id: 'p2_2', title: 'Site Over View 2', hint: 'Foto tampak tower / area keseluruhan site' },
+      { id: 'p2_3', title: 'Rectifier Close', hint: 'Foto pintu shelter / cabinet rectifier dalam keadaan tertutup' },
+      { id: 'p2_4', title: 'Rectifier Open', hint: 'Foto bagian dalam cabinet rectifier dalam keadaan terbuka' },
+      { id: 'p2_5', title: 'Material On Site & SN', hint: 'Foto kardus/perangkat RTU & label Serial Number di lokasi' },
+      { id: 'p2_6', title: 'Material & Accessories', hint: 'Foto kelengkapan material & aksesoris instalasi di lokasi' }
+    ];
+
+    const PHOTO_SLOTS_P3 = [
+      { id: 'p3_1', title: 'RTU Before Install', hint: 'Foto kondisi rak sebelum pemasangan unit RTU' },
+      { id: 'p3_2', title: 'Progres Install RTU', hint: 'Foto proses pemasangan dan wiring unit RTU' },
+      { id: 'p3_3', title: 'RTU Before Install', editableTitle: true, hint: 'Judul sesuai template PDF (dapat diedit bila perlu, mis. RTU After Install)' },
+      { id: 'p3_4', title: 'Capture NMS Online', hint: 'Screenshot dashboard NMS menampilkan status site Online' },
+      { id: 'p3_5', title: 'Capture Alarm NMS 1', hint: 'Screenshot daftar Active Alarm & PaaS Overview System/Battery/Energy' },
+      { id: 'p3_6', title: 'Capture Alarm NMS 2', hint: 'Screenshot detail parameter AC & tabel Devices Battery pada NMS' }
+    ];
+
+    const MONITORING_ITEMS = [
+      { key: 'mon_a', label: 'a. Kondisi' },
+      { key: 'mon_b', label: 'b. Fungsi' }
+    ];
+
+    const ACCESSORIES_ITEMS = [
+      { key: 'acc_a', label: 'a. Cable LAN' },
+      { key: 'acc_b', label: 'b. Cable Power' },
+      { key: 'acc_c', label: 'c. Extend Cable Antena' },
+      { key: 'acc_d', label: 'd. Bracket Antena' },
+      { key: 'acc_e', label: 'e. Conduit' }
+    ];
+
+    let DEFAULT_TECH_SIGNATURE_PNG = '';
+    let DEFAULT_PM_STAMP_SIG_PNG = '';
+    let appState = {};
+
+    function getSlotTitle(slot) {
+      if (appState && appState.slotTitles && appState.slotTitles[slot.id] !== undefined) {
+        return appState.slotTitles[slot.id];
+      }
+      return slot.title;
+    }
+
+    function getDefaultState() {
+      return {
+        formNo: '130/ Rectifier / Integrasi NMS / PTI / 06 / 2026',
+        installDate: '19-May-26',
+        siteIdTp: 'SUL-SN-MRS1-0001',
+        siteNameTp: 'MetroE Maros Kota',
+        siteIdTenant: 'SN-0034-T-S',
+        ipAddress: '10.207.5.173',
+        longitude: '119,57327',
+        latitude: '-4,99621',
+        snRtu: 'TSM10IP01260311',
+        simCard: '0811-1443-0107',
+        province: 'Sulawesi',
+        alamat: 'Jl. Poros Maros - Pangkep Lingkungan Solojirang II, Kelurahan Turikale, Kecamatan Maros Baru, Kabupaten Maros',
+        supplierName: 'PT BACH MULTI GLOBAL',
+
+        // Komponen RTU 1 - 5
+        p1_header_chk: false,
+        p1_a_status: 'BAIK', p1_a_ok: true, p1_a_nok: false,
+
+        p2_header_chk: false,
+        p2_a_status: 'BAIK', p2_a_ok: true, p2_a_nok: false,
+        p2_b_status: 'BAIK', p2_b_ok: true, p2_b_nok: false,
+
+        p3_header_chk: false,
+        p3_a_status: 'BAIK', p3_a_ok: true, p3_a_nok: false,
+        p3_b_status: 'BAIK', p3_b_ok: true, p3_b_nok: false,
+
+        rectifierBrand: 'Fiberhome',
+        moduleQty: '3',
+        batteryBrand: 'Fiberhome',
+        batteryCap: '100Ah',
+        batteryQty: '2',
+
+        // Komponen RTU 6 - 9
+        p6_status: 'BAIK', p6_ok: true, p6_nok: false,
+        p7_status: 'BAIK', p7_ok: true, p7_nok: false,
+        p8_status: 'BAIK', p8_ok: true, p8_nok: false,
+
+        p9_header_ok: false, p9_header_nok: false,
+        p9_vac_lead: false, p9_vac_val: '226.36 V', p9_vac_status: 'SESUAI', p9_vac_ok: true, p9_vac_nok: false,
+        p9_lac_val: '1.13 A', p9_lac_status: 'SESUAI', p9_lac_ok: true, p9_lac_nok: false,
+        p9_vdc_val: '53.68 V', p9_vdc_status: 'SESUAI', p9_vdc_ok: true, p9_vdc_nok: false,
+        p9_ldc_lead: false, p9_ldc_val: '71.3', p9_ldc_status: 'SESUAI', p9_ldc_ok: true, p9_ldc_nok: false,
+
+        // Monitoring RTU & Accessories
+        mon_a_lead: false, mon_a_status: 'BAIK', mon_a_ok: true, mon_a_nok: false,
+        mon_b_lead: false, mon_b_status: 'BAIK', mon_b_ok: true, mon_b_nok: false,
+
+        acc_a_lead: false, acc_a_status: 'BAIK', acc_a_ok: true, acc_a_nok: false,
+        acc_b_lead: false, acc_b_status: 'BAIK', acc_b_ok: true, acc_b_nok: false,
+        acc_c_lead: false, acc_c_status: 'BAIK', acc_c_ok: true, acc_c_nok: false,
+        acc_d_lead: false, acc_d_status: 'BAIK', acc_d_ok: true, acc_d_nok: false,
+        acc_e_lead: false, acc_e_status: 'BAIK', acc_e_ok: true, acc_e_nok: false,
+
+        // Status Monitoring (NMS)
+        nms_1: true,
+        nms_2: true,
+        nms_3: true,
+        nms_4: true,
+
+        // Approval Signatures
+        sig_tech_name: 'Maruba Simangunsong', sig_tech_date: '19-May-26', sig_tech_img: DEFAULT_TECH_SIGNATURE_PNG,
+        sig_pm_name: 'Pandu Dewantara', sig_pm_date: '19-May-26', sig_pm_img: DEFAULT_PM_STAMP_SIG_PNG,
+        sig_pti_name: 'Tedhi Indra Kusuma', sig_pti_date: '', sig_pti_img: '',
+        sig_iforte_name: 'Purwanto', sig_iforte_date: '', sig_iforte_img: '',
+
+        // Judul Kustom Slot Foto (opsional) & Foto Base64
+        slotTitles: {},
+        photos: {}
+      };
+    }
+
+    // =========================================================================
+    // 2. GENERATOR TANDA TANGAN & CAP PERUSAHAAN BAWAAN (CANVAS PNG)
+    // =========================================================================
+    function generateDefaultSignatureAssets() {
+      // 1. Tanda tangan Maruba Simangunsong
+      const c1 = document.createElement('canvas');
+      c1.width = 360;
+      c1.height = 170;
+      const ctx1 = c1.getContext('2d');
+      ctx1.clearRect(0, 0, c1.width, c1.height);
+
+      // Arsiran halus di tengah
+      ctx1.fillStyle = 'rgba(130, 130, 135, 0.35)';
+      ctx1.beginPath();
+      ctx1.moveTo(115, 118);
+      ctx1.bezierCurveTo(135, 65, 195, 45, 210, 72);
+      ctx1.bezierCurveTo(222, 95, 185, 128, 225, 108);
+      ctx1.bezierCurveTo(245, 98, 250, 112, 222, 125);
+      ctx1.bezierCurveTo(185, 138, 140, 132, 115, 118);
+      ctx1.fill();
+
+      // Goresan utama kaligrafi
+      ctx1.strokeStyle = '#3f3f46';
+      ctx1.lineWidth = 4.2;
+      ctx1.lineCap = 'round';
+      ctx1.lineJoin = 'round';
+      ctx1.beginPath();
+      ctx1.moveTo(95, 116);
+      ctx1.lineTo(95, 34);
+      ctx1.lineTo(126, 78);
+      ctx1.lineTo(154, 34);
+      ctx1.lineTo(152, 132);
+      ctx1.bezierCurveTo(162, 82, 192, 48, 206, 56);
+      ctx1.bezierCurveTo(216, 64, 175, 115, 165, 128);
+      ctx1.bezierCurveTo(185, 95, 232, 52, 252, 56);
+      ctx1.bezierCurveTo(268, 60, 235, 108, 196, 128);
+      ctx1.stroke();
+
+      // Goresan silang & garis bawah
+      ctx1.lineWidth = 3.6;
+      ctx1.beginPath();
+      ctx1.moveTo(94, 118);
+      ctx1.bezierCurveTo(145, 105, 205, 86, 236, 78);
+      ctx1.moveTo(128, 82);
+      ctx1.lineTo(192, 128);
+      ctx1.moveTo(90, 136);
+      ctx1.quadraticCurveTo(165, 122, 238, 130);
+      ctx1.stroke();
+
+      DEFAULT_TECH_SIGNATURE_PNG = c1.toDataURL('image/png');
+
+      // 2. Cap BACH MULTI GLOBAL + Tanda tangan Pandu Dewantara
+      const c2 = document.createElement('canvas');
+      c2.width = 380;
+      c2.height = 175;
+      const ctx2 = c2.getContext('2d');
+      ctx2.clearRect(0, 0, c2.width, c2.height);
+
+      // Cap Stempel Biru "BACH MULTI GLOBAL"
+      ctx2.save();
+      ctx2.globalAlpha = 0.86;
+      ctx2.fillStyle = '#2563eb';
+      ctx2.font = '900 44px Arial Black, Impact, sans-serif';
+      ctx2.textAlign = 'center';
+      ctx2.textBaseline = 'middle';
+      ctx2.fillText('BACH', 190, 74);
+
+      // Aksentuasi lengkung putih pada huruf C/H
+      ctx2.strokeStyle = '#ffffff';
+      ctx2.lineWidth = 3;
+      ctx2.beginPath();
+      ctx2.arc(218, 74, 16, -0.6, 0.8);
+      ctx2.stroke();
+
+      ctx2.fillStyle = '#1e3a8a';
+      ctx2.font = '700 15px Arial, sans-serif';
+      ctx2.fillText('M U L T I   G L O B A L', 190, 106);
+      ctx2.restore();
+
+      // Tanda tangan vertikal hitam Pandu Dewantara menimpa cap
+      ctx2.strokeStyle = '#18181b';
+      ctx2.lineWidth = 2.6;
+      ctx2.lineCap = 'round';
+      ctx2.lineJoin = 'round';
+      ctx2.beginPath();
+      ctx2.moveTo(185, 22);
+      ctx2.lineTo(199, 152);
+      ctx2.moveTo(186, 48);
+      ctx2.bezierCurveTo(212, 42, 218, 66, 190, 72);
+      ctx2.bezierCurveTo(216, 70, 224, 92, 188, 94);
+      ctx2.bezierCurveTo(174, 94, 174, 74, 192, 76);
+      ctx2.moveTo(175, 86);
+      ctx2.quadraticCurveTo(205, 82, 226, 86);
+      ctx2.stroke();
+
+      ctx2.fillStyle = '#18181b';
+      ctx2.font = 'italic 700 13px Arial, sans-serif';
+      ctx2.fillText('PANDU D', 198, 126);
+
+      DEFAULT_PM_STAMP_SIG_PNG = c2.toDataURL('image/png');
+    }
+
+    function updateSignaturePreviewsUI() {
+      const techImg = document.getElementById('sig-preview-tech');
+      if (techImg) techImg.src = appState.sig_tech_img || DEFAULT_TECH_SIGNATURE_PNG;
+
+      const pmImg = document.getElementById('sig-preview-pm');
+      if (pmImg) pmImg.src = appState.sig_pm_img || DEFAULT_PM_STAMP_SIG_PNG;
+
+      ['pti', 'iforte'].forEach(role => {
+        const imgEl = document.getElementById(`sig-preview-${role}`);
+        const emptyEl = document.getElementById(`sig-empty-${role}`);
+        const dataUrl = appState[`sig_${role}_img`];
+        if (imgEl && emptyEl) {
+          if (dataUrl) {
+            imgEl.src = dataUrl;
+            imgEl.classList.remove('hidden');
+            emptyEl.classList.add('hidden');
+          } else {
+            imgEl.src = '';
+            imgEl.classList.add('hidden');
+            emptyEl.classList.remove('hidden');
+          }
+        }
+      });
+    }
+
+    function handleSignatureUpload(event, role) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        appState[`sig_${role}_img`] = e.target.result;
+        updateSignaturePreviewsUI();
+        renderPreview();
+        showToast('Gambar tanda tangan berhasil diperbarui.', 'success');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function restoreSingleSignature(role) {
+      if (role === 'tech') {
+        appState.sig_tech_img = DEFAULT_TECH_SIGNATURE_PNG;
+        appState.sig_tech_name = 'Maruba Simangunsong';
+        appState.sig_tech_date = '19-May-26';
+      } else if (role === 'pm') {
+        appState.sig_pm_img = DEFAULT_PM_STAMP_SIG_PNG;
+        appState.sig_pm_name = 'Pandu Dewantara';
+        appState.sig_pm_date = '19-May-26';
+      }
+      syncStateToInputs();
+      renderPreview();
+      showToast('Tanda tangan & cap bawaan dipulihkan.', 'info');
+    }
+
+    function clearOptionalSignature(role) {
+      appState[`sig_${role}_img`] = '';
+      updateSignaturePreviewsUI();
+      renderPreview();
+    }
+
+    function resetDefaultSignatures() {
+      appState.sig_tech_img = DEFAULT_TECH_SIGNATURE_PNG;
+      appState.sig_pm_img = DEFAULT_PM_STAMP_SIG_PNG;
+      updateSignaturePreviewsUI();
+      renderPreview();
+      showToast('Tanda tangan & cap bawaan berhasil dipulihkan.', 'success');
+    }
+
+    // =========================================================================
+    // 3. RENDER BARIS DINAMIS & SINKRONISASI INPUT FORM
+    // =========================================================================
+    function renderDynamicChecklistRows() {
+      const renderRows = (containerId, items) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = items.map(item => `
+          <div class="grid grid-cols-12 gap-2 items-center p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+            <div class="col-span-5 flex items-center gap-2">
+              <input type="checkbox" data-field="${item.key}_lead" class="w-3.5 h-3.5 rounded accent-amber-500" title="Checkbox kiri opsional" />
+              <span class="text-xs text-slate-200">${item.label}</span>
+            </div>
+            <input type="text" data-field="${item.key}_status" value="BAIK" class="col-span-3 px-2 py-1 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white text-center" />
+            <div class="col-span-4 flex items-center justify-end gap-3 text-xs">
+              <label class="inline-flex items-center gap-1 text-emerald-400 cursor-pointer">
+                <input type="checkbox" data-field="${item.key}_ok" class="ok-chk w-3.5 h-3.5 rounded accent-emerald-500" /> OK
+              </label>
+              <label class="inline-flex items-center gap-1 text-rose-400 cursor-pointer">
+                <input type="checkbox" data-field="${item.key}_nok" class="w-3.5 h-3.5 rounded accent-rose-500" /> NOK
+              </label>
+            </div>
+          </div>
+        `).join('');
+      };
+
+      renderRows('monitoring-rtu-rows', MONITORING_ITEMS);
+      renderRows('accessories-rows', ACCESSORIES_ITEMS);
+    }
+
+    function renderPhotoUploadCards() {
+      const buildGrid = (containerId, slots) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = slots.map((slot, index) => `
+          <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-3">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex-1 min-w-0">
+                ${slot.editableTitle ? `
+                  <div class="flex items-center gap-1.5 mb-0.5">
+                    <span class="text-xs font-semibold text-amber-400 shrink-0">#${index + 1}</span>
+                    <input type="text" id="title-input-${slot.id}" value="${esc(getSlotTitle(slot))}" oninput="updateSlotTitle('${slot.id}', this.value)" class="w-full px-2 py-0.5 rounded bg-slate-900 border border-slate-700 focus:border-amber-400 text-xs font-semibold text-amber-300 outline-none" />
+                  </div>
+                ` : `
+                  <span class="text-xs font-semibold text-amber-400">#${index + 1} ${slot.title}</span>
+                `}
+                <p class="text-[11px] text-slate-400">${slot.hint}</p>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" id="btn-rot-${slot.id}" onclick="rotatePhoto('${slot.id}')" title="Putar 90°" class="hidden px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs transition">
+                  <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+                </button>
+                <button type="button" id="btn-del-${slot.id}" onclick="removePhoto('${slot.id}')" title="Hapus Foto" class="hidden px-2.5 py-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 text-xs transition">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <div
+              id="dropzone-${slot.id}"
+              onclick="document.getElementById('file-${slot.id}').click()"
+              ondragover="handleDragOver(event, '${slot.id}')"
+              ondragleave="handleDragLeave(event, '${slot.id}')"
+              ondrop="handleDrop(event, '${slot.id}')"
+              class="relative h-56 rounded-xl border-2 border-dashed border-slate-700 hover:border-amber-400/70 bg-slate-900/60 flex flex-col items-center justify-center cursor-pointer overflow-hidden transition group"
+            >
+              <img id="img-${slot.id}" src="" alt="${esc(getSlotTitle(slot))}" class="hidden max-h-full max-w-full object-contain p-1.5" />
+              <div id="placeholder-${slot.id}" class="flex flex-col items-center justify-center text-center p-4">
+                <div class="w-11 h-11 rounded-full bg-slate-800 group-hover:bg-amber-500/20 text-slate-400 group-hover:text-amber-400 flex items-center justify-center mb-2 transition">
+                  <i data-lucide="upload-cloud" class="w-5 h-5"></i>
+                </div>
+                <p class="text-xs font-medium text-slate-300">Klik atau seret foto ke sini</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">JPG, PNG, WEBP (Otomatis Center 100% di Excel)</p>
+              </div>
+              <input type="file" id="file-${slot.id}" accept="image/*" class="hidden" onchange="handleFileSelect(event, '${slot.id}')" />
+            </div>
+          </div>
+        `).join('');
+      };
+
+      buildGrid('photo-grid-p2', PHOTO_SLOTS_P2);
+      buildGrid('photo-grid-p3', PHOTO_SLOTS_P3);
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function updateSlotTitle(slotId, newVal) {
+      if (!appState.slotTitles) appState.slotTitles = {};
+      appState.slotTitles[slotId] = newVal;
+    }
+
+    function bindAllInputs() {
+      document.querySelectorAll('[data-field]').forEach(el => {
+        const field = el.getAttribute('data-field');
+        const handler = () => {
+          if (el.type === 'checkbox') {
+            appState[field] = el.checked;
+          } else {
+            appState[field] = el.value;
+          }
+        };
+        el.addEventListener('input', handler);
+        el.addEventListener('change', handler);
+      });
+    }
+
+    function syncStateToInputs() {
+      document.querySelectorAll('[data-field]').forEach(el => {
+        const field = el.getAttribute('data-field');
+        if (el.type === 'checkbox') {
+          el.checked = Boolean(appState[field]);
+        } else {
+          el.value = appState[field] !== undefined ? appState[field] : '';
+        }
+      });
+
+      [...PHOTO_SLOTS_P2, ...PHOTO_SLOTS_P3].forEach(slot => {
+        const titleInput = document.getElementById(`title-input-${slot.id}`);
+        if (titleInput) titleInput.value = getSlotTitle(slot);
+        updatePhotoCardUI(slot.id);
+      });
+      updateSignaturePreviewsUI();
+      updatePhotoBadges();
+    }
+
+    function checkAllOk() {
+      document.querySelectorAll('.ok-chk').forEach(chk => {
+        chk.checked = true;
+        const field = chk.getAttribute('data-field');
+        if (field) appState[field] = true;
+      });
+      renderPreview();
+      showToast('Semua item checklist OK telah dicentang.', 'success');
+    }
+
+    function fillSampleData() {
+      const existingPhotos = { ...appState.photos };
+      appState = getDefaultState();
+      appState.photos = existingPhotos;
+      syncStateToInputs();
+      renderPreview();
+      showToast('Contoh data site SUL-SN-MRS1-0001 (MetroE Maros Kota) berhasil diisi.', 'success');
+    }
+
+    function saveDraftToStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+        showToast('Draft data & foto berhasil disimpan di browser.', 'success');
+      } catch (err) {
+        showToast('Ukuran foto terlalu besar untuk penyimpanan lokal browser, tetapi tetap siap di-export ke Excel.', 'warning');
+      }
+    }
+
+    function loadDraftFromStorage() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          appState = { ...getDefaultState(), ...parsed };
+          if (!appState.sig_tech_img) appState.sig_tech_img = DEFAULT_TECH_SIGNATURE_PNG;
+          if (!appState.sig_pm_img) appState.sig_pm_img = DEFAULT_PM_STAMP_SIG_PNG;
+          if (!appState.photos) appState.photos = {};
+          if (!appState.slotTitles) appState.slotTitles = {};
+        }
+      } catch (e) {
+        console.warn('Gagal memuat draft tersimpan:', e);
+      }
+    }
+
+    function confirmResetForm() {
+      openConfirmModal(
+        'Reset Seluruh Form?',
+        'Semua isian data site, checklist, dan foto dokumentasi yang diunggah akan dikosongkan.',
+        () => {
+          const blank = getDefaultState();
+          Object.keys(blank).forEach(k => {
+            if (typeof blank[k] === 'boolean') blank[k] = false;
+            else if (typeof blank[k] === 'string') blank[k] = '';
+          });
+          blank.sig_tech_name = 'Maruba Simangunsong';
+          blank.sig_tech_date = '19-May-26';
+          blank.sig_tech_img = DEFAULT_TECH_SIGNATURE_PNG;
+          blank.sig_pm_name = 'Pandu Dewantara';
+          blank.sig_pm_date = '19-May-26';
+          blank.sig_pm_img = DEFAULT_PM_STAMP_SIG_PNG;
+          blank.sig_pti_name = 'Tedhi Indra Kusuma';
+          blank.sig_iforte_name = 'Purwanto';
+          blank.slotTitles = {};
+          blank.photos = {};
+
+          appState = blank;
+          localStorage.removeItem(STORAGE_KEY);
+          syncStateToInputs();
+          renderPreview();
+          showToast('Form telah dikosongkan (tanda tangan & cap bawaan tetap aktif).', 'info');
+        }
+      );
+    }
+
+    // =========================================================================
+    // 4. NAVIGASI TAB & UPLOAD / KOMPRESI / ROTASI FOTO
+    // =========================================================================
+    function switchTab(tabNumber) {
+      [1, 2, 3, 4].forEach(n => {
+        const panel = document.getElementById(`tab-panel-${n}`);
+        const btn = document.getElementById(`tab-btn-${n}`);
+        if (!panel || !btn) return;
+        if (n === tabNumber) {
+          panel.classList.remove('hidden');
+          btn.classList.add('border-amber-400', 'text-amber-400', 'font-semibold');
+          btn.classList.remove('border-transparent', 'text-slate-400', 'font-medium');
+        } else {
+          panel.classList.add('hidden');
+          btn.classList.remove('border-amber-400', 'text-amber-400', 'font-semibold');
+          btn.classList.add('border-transparent', 'text-slate-400', 'font-medium');
+        }
+      });
+
+      if (tabNumber === 4) {
+        renderPreview();
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function handleDragOver(e, slotId) {
+      e.preventDefault();
+      const dz = document.getElementById(`dropzone-${slotId}`);
+      if (dz) dz.classList.add('border-amber-400', 'bg-amber-500/10');
+    }
+
+    function handleDragLeave(e, slotId) {
+      e.preventDefault();
+      const dz = document.getElementById(`dropzone-${slotId}`);
+      if (dz) dz.classList.remove('border-amber-400', 'bg-amber-500/10');
+    }
+
+    function handleDrop(e, slotId) {
+      e.preventDefault();
+      handleDragLeave(e, slotId);
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) processImageFile(file, slotId);
+    }
+
+    function handleFileSelect(e, slotId) {
+      const file = e.target.files && e.target.files[0];
+      if (file) processImageFile(file, slotId);
+    }
+
+    function processImageFile(file, slotId) {
+      if (!file.type.startsWith('image/')) {
+        showToast('Harap pilih file gambar (JPG, PNG, atau WEBP).', 'error');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1200;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+
+          appState.photos[slotId] = canvas.toDataURL('image/jpeg', 0.88);
+          updatePhotoCardUI(slotId);
+          updatePhotoBadges();
+          showToast('Foto berhasil diunggah & dioptimalkan.', 'success');
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function rotatePhoto(slotId) {
+      const dataUrl = appState.photos[slotId];
+      if (!dataUrl) return;
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.height;
+        canvas.height = img.width;
+        const ctx = canvas.getContext('2d');
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((90 * Math.PI) / 180);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        appState.photos[slotId] = canvas.toDataURL('image/jpeg', 0.88);
+        updatePhotoCardUI(slotId);
+        renderPreview();
+      };
+      img.src = dataUrl;
+    }
+
+    function removePhoto(slotId) {
+      delete appState.photos[slotId];
+      const fileInput = document.getElementById(`file-${slotId}`);
+      if (fileInput) fileInput.value = '';
+      updatePhotoCardUI(slotId);
+      updatePhotoBadges();
+      renderPreview();
+    }
+
+    function updatePhotoCardUI(slotId) {
+      const imgEl = document.getElementById(`img-${slotId}`);
+      const phEl = document.getElementById(`placeholder-${slotId}`);
+      const rotBtn = document.getElementById(`btn-rot-${slotId}`);
+      const delBtn = document.getElementById(`btn-del-${slotId}`);
+      const dataUrl = appState.photos[slotId];
+
+      if (!imgEl || !phEl) return;
+      if (dataUrl) {
+        imgEl.src = dataUrl;
+        imgEl.classList.remove('hidden');
+        phEl.classList.add('hidden');
+        if (rotBtn) rotBtn.classList.remove('hidden');
+        if (delBtn) delBtn.classList.remove('hidden');
+      } else {
+        imgEl.src = '';
+        imgEl.classList.add('hidden');
+        phEl.classList.remove('hidden');
+        if (rotBtn) rotBtn.classList.add('hidden');
+        if (delBtn) delBtn.classList.add('hidden');
+      }
+    }
+
+    function updatePhotoBadges() {
+      const p2Count = PHOTO_SLOTS_P2.filter(s => Boolean(appState.photos[s.id])).length;
+      const p3Count = PHOTO_SLOTS_P3.filter(s => Boolean(appState.photos[s.id])).length;
+      const b2 = document.getElementById('badge-photo-p2');
+      const b3 = document.getElementById('badge-photo-p3');
+      if (b2) b2.textContent = `${p2Count}/6`;
+      if (b3) b3.textContent = `${p3Count}/6`;
+    }
+
+    // =========================================================================
+    // 4B. DATABASE MASTER SITE & LOGIKA AUTO-FILL BERDASARKAN SITE ID TP / PTI
+    // =========================================================================
+    function loadSiteDatabase() {
+      try {
+        const raw = localStorage.getItem(SITE_DB_STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            masterSiteDb = parsed;
+            refreshSiteDatalist();
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Gagal memuat database site:', e);
+      }
+      masterSiteDb = [...INITIAL_SAMPLE_SITE_DB];
+      saveSiteDatabase();
+      refreshSiteDatalist();
+    }
+
+    function saveSiteDatabase() {
+      try {
+        localStorage.setItem(SITE_DB_STORAGE_KEY, JSON.stringify(masterSiteDb));
+      } catch (e) {
+        console.warn('Gagal menyimpan database site:', e);
+      }
+      const badge = document.getElementById('db-count-badge');
+      if (badge) badge.textContent = masterSiteDb.length;
+    }
+
+    function refreshSiteDatalist() {
+      const dl = document.getElementById('site-id-datalist');
+      const badge = document.getElementById('db-count-badge');
+      if (badge) badge.textContent = masterSiteDb.length;
+      if (!dl) return;
+      dl.innerHTML = masterSiteDb.map(site =>
+        `<option value="${esc(site.siteIdTp)}">${esc(site.siteNameTp || '')} — ${esc(site.ipAddress || '')}</option>`
+      ).join('');
+    }
+
+    function handleSiteIdAutoFill(inputValue) {
+      const query = (inputValue || '').trim().toUpperCase();
+      const statusBadge = document.getElementById('site-match-status');
+      if (!query) {
+        if (statusBadge) statusBadge.classList.add('hidden');
+        return;
+      }
+
+      const found = masterSiteDb.find(item => (item.siteIdTp || '').trim().toUpperCase() === query);
+      if (found) {
+        appState.siteIdTp = found.siteIdTp;
+        if (found.siteNameTp !== undefined) appState.siteNameTp = found.siteNameTp;
+        if (found.siteIdTenant !== undefined) appState.siteIdTenant = found.siteIdTenant;
+        if (found.ipAddress !== undefined) appState.ipAddress = found.ipAddress;
+        if (found.longitude !== undefined) appState.longitude = found.longitude;
+        if (found.latitude !== undefined) appState.latitude = found.latitude;
+        if (found.snRtu !== undefined) appState.snRtu = found.snRtu;
+        if (found.simCard !== undefined) appState.simCard = found.simCard;
+        if (found.province !== undefined) appState.province = found.province;
+        if (found.alamat !== undefined) appState.alamat = found.alamat;
+        if (found.supplierName) appState.supplierName = found.supplierName;
+
+        syncStateToInputs();
+        renderPreview();
+        if (statusBadge) statusBadge.classList.remove('hidden');
+        showToast(`Data site "${found.siteIdTp} — ${found.siteNameTp}" otomatis terisi!`, 'success');
+      } else {
+        if (statusBadge) statusBadge.classList.add('hidden');
+      }
+    }
+
+    function openSiteDbModal() {
+      const modal = document.getElementById('site-db-modal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      renderSiteDbTable('');
+    }
+
+    function closeSiteDbModal() {
+      const modal = document.getElementById('site-db-modal');
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function renderSiteDbTable(filterText = '') {
+      const tbody = document.getElementById('site-db-tbody');
+      if (!tbody) return;
+      const q = filterText.trim().toLowerCase();
+      const filtered = masterSiteDb.filter(s =>
+        (s.siteIdTp || '').toLowerCase().includes(q) ||
+        (s.siteNameTp || '').toLowerCase().includes(q) ||
+        (s.snRtu || '').toLowerCase().includes(q)
+      );
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-500">Tidak ada data site yang cocok. Silakan import file Excel/CSV master site.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.slice(0, 100).map(s => `
+        <tr class="hover:bg-slate-900/80">
+          <td class="p-2.5 font-semibold text-amber-300">${esc(s.siteIdTp)}</td>
+          <td class="p-2.5">${esc(s.siteNameTp)}</td>
+          <td class="p-2.5 font-mono text-[11px]">${esc(s.ipAddress)}</td>
+          <td class="p-2.5 font-mono text-[11px]">${esc(s.snRtu)}</td>
+          <td class="p-2.5 text-right">
+            <button onclick="selectSiteFromModal('${esc(s.siteIdTp)}')" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-semibold text-[11px] transition">
+              Pilih & Isi
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function selectSiteFromModal(siteId) {
+      closeSiteDbModal();
+      handleSiteIdAutoFill(siteId);
+    }
+
+    function handleImportSiteDatabase(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      if (typeof XLSX === 'undefined') {
+        showToast('Library pembaca Excel sedang dimuat, coba sesaat lagi.', 'error');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+
+          const pickCol = (row, aliases) => {
+            const keys = Object.keys(row);
+            for (const alias of aliases) {
+              const matchKey = keys.find(k => k.trim().toUpperCase().replace(/[^A-Z0-9]/g, '') === alias);
+              if (matchKey && row[matchKey] !== '') return String(row[matchKey]).trim();
+            }
+            return '';
+          };
+
+          const imported = [];
+          rows.forEach(row => {
+            const siteIdTp = pickCol(row, ['SITEIDTP', 'SITEIDPTI', 'SITEID', 'IDTP', 'IDPTI']);
+            if (!siteIdTp) return;
+            imported.push({
+              siteIdTp,
+              siteNameTp: pickCol(row, ['SITENAMETP', 'SITENAME', 'NAMA', 'NAMASITE']),
+              siteIdTenant: pickCol(row, ['SITEIDTENANT', 'SITEIDTEENANT', 'TENANTID', 'TENANT']),
+              ipAddress: pickCol(row, ['IPADDRESS', 'IPADDRES', 'IP']),
+              longitude: pickCol(row, ['LONG', 'LONGITUDE', 'LON']),
+              latitude: pickCol(row, ['LAT', 'LATITUDE']),
+              snRtu: pickCol(row, ['SNRTU', 'SN', 'SERIALNUMBER']),
+              simCard: pickCol(row, ['NOSIMCARD', 'SIMCARD', 'MSISDN', 'NOHP']),
+              province: pickCol(row, ['PROVINCE', 'PROVINSI', 'AREA', 'REGION']),
+              alamat: pickCol(row, ['ALAMAT', 'ALAMATSITE', 'ADDRESS']),
+              supplierName: pickCol(row, ['SUPPLIERNAME', 'SUPPLIER', 'MITRA', 'VENDOR']) || 'PT BACH MULTI GLOBAL'
+            });
+          });
+
+          if (imported.length === 0) {
+            showToast('Tidak ditemukan kolom SITE ID TP / SITE ID PTI pada file tersebut.', 'error');
+            return;
+          }
+
+          // Gabungkan / perbarui data berdasarkan siteIdTp
+          const map = new Map(masterSiteDb.map(item => [item.siteIdTp.toUpperCase(), item]));
+          imported.forEach(item => map.set(item.siteIdTp.toUpperCase(), item));
+          masterSiteDb = Array.from(map.values());
+
+          saveSiteDatabase();
+          refreshSiteDatalist();
+          renderSiteDbTable(document.getElementById('search-site-db')?.value || '');
+          showToast(`Berhasil mengimpor ${imported.length} data site ke database!`, 'success');
+        } catch (err) {
+          showToast('Gagal membaca file database: ' + err.message, 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function downloadMasterSiteTemplate() {
+      if (typeof XLSX === 'undefined') return;
+      const sampleRows = [
+        {
+          'SITE ID TP': 'SUL-SN-MRS1-0001',
+          'SITE NAME TP': 'MetroE Maros Kota',
+          'SITE ID TENANT': 'SN-0034-T-S',
+          'IP ADDRESS': '10.207.5.173',
+          'LONG': '119,57327',
+          'LAT': '-4,99621',
+          'SN RTU': 'TSM10IP01260311',
+          'No Sim Card': '0811-1443-0107',
+          'PROVINCE': 'Sulawesi',
+          'ALAMAT SITE': 'Jl. Poros Maros - Pangkep Lingkungan Solojirang II, Kelurahan Turikale, Kecamatan Maros Baru, Kabupaten Maros',
+          'Supplier Name': 'PT BACH MULTI GLOBAL'
+        },
+        {
+          'SITE ID TP': 'SUL-SN-MKS1-0002',
+          'SITE NAME TP': 'MetroE Makassar Pettarani',
+          'SITE ID TENANT': 'SN-0035-T-S',
+          'IP ADDRESS': '10.207.5.174',
+          'LONG': '119,43210',
+          'LAT': '-5,14765',
+          'SN RTU': 'TSM10IP01260312',
+          'No Sim Card': '0811-1443-0108',
+          'PROVINCE': 'Sulawesi',
+          'ALAMAT SITE': 'Jl. A. P. Pettarani No. 45, Kota Makassar, Sulawesi Selatan',
+          'Supplier Name': 'PT BACH MULTI GLOBAL'
+        }
+      ];
+      const ws = XLSX.utils.json_to_sheet(sampleRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'MASTER_SITE');
+      XLSX.writeFile(wb, 'Template_Master_Site_ATP.xlsx');
+    }
+
+    function clearSiteDatabase() {
+      masterSiteDb = [];
+      saveSiteDatabase();
+      refreshSiteDatalist();
+      renderSiteDbTable('');
+      showToast('Database master site dikosongkan.', 'info');
+    }
+
+    function generateDummyPhotos(pageNum) {
+      const slots = pageNum === 2 ? PHOTO_SLOTS_P2 : PHOTO_SLOTS_P3;
+      const palette = ['#1e3a8a', '#065f46', '#7c2d12', '#312e81', '#134e4a', '#581c87'];
+      slots.forEach((slot, idx) => {
+        const title = getSlotTitle(slot);
+        const canvas = document.createElement('canvas');
+        // Campuran rasio portrait dan landscape untuk menguji centering
+        const isPortrait = idx % 2 === 0;
+        canvas.width = isPortrait ? 600 : 800;
+        canvas.height = isPortrait ? 800 : 600;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = palette[idx % palette.length];
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = 8;
+        ctx.strokeRect(24, 24, canvas.width - 48, canvas.height - 48);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 30px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(title.toUpperCase(), canvas.width / 2, canvas.height / 2 - 20);
+
+        ctx.fillStyle = '#fde68a';
+        ctx.font = '20px Arial, sans-serif';
+        ctx.fillText(`${appState.siteIdTp || 'SUL-SN-MRS1-0001'} - ${appState.siteNameTp || 'MetroE Maros Kota'}`, canvas.width / 2, canvas.height / 2 + 24);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.font = '16px monospace';
+        ctx.fillText(`${appState.latitude || '-4,99621'}, ${appState.longitude || '119,57327'} | ${appState.installDate || '19-May-26'}`, canvas.width / 2, canvas.height - 54);
+
+        appState.photos[slot.id] = canvas.toDataURL('image/jpeg', 0.85);
+        updatePhotoCardUI(slot.id);
+      });
+      updatePhotoBadges();
+      renderPreview();
+      showToast(`6 foto simulasi Halaman ${pageNum} berhasil dibuat.`, 'success');
+    }
+
+    // =========================================================================
+    // 5. RENDER PRATINJAU A4 (3 HALAMAN IDENTIK TEMPLATE)
+    // =========================================================================
+    function esc(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function chkBox(val) {
+      return val ? '<span style="font-size:11px; font-weight:bold;">&#9745;</span>' : '<span style="font-size:11px;">&#9744;</span>';
+    }
+
+    function renderPreview() {
+      const container = document.getElementById('preview-container');
+      if (!container) return;
+      const s = appState;
+
+      const techSigSrc = s.sig_tech_img || DEFAULT_TECH_SIGNATURE_PNG;
+      const pmSigSrc = s.sig_pm_img || DEFAULT_PM_STAMP_SIG_PNG;
+
+      // ---------------- HALAMAN 1 ----------------
+      const page1Html = `
+        <div class="a4-sheet">
+          <div style="text-align:center; font-weight:bold; font-size:14px; letter-spacing:0.3px; margin-bottom:2px;">
+            FORM ATP CHECK INTEGRASI NMS
+          </div>
+          <div style="text-align:center; font-weight:bold; font-size:10px; margin-bottom:10px;">
+            No. : ${esc(s.formNo)}
+          </div>
+
+          <!-- Blok Info Site 2 Sisi Sejajar -->
+          <table style="width:100%; border-collapse:collapse; margin-bottom:8px; font-size:9px;">
+            <colgroup>
+              <col style="width:15%" />
+              <col style="width:2%" />
+              <col style="width:45%" />
+              <col style="width:14%" />
+              <col style="width:2%" />
+              <col style="width:22%" />
+            </colgroup>
+            <tr>
+              <td style="font-weight:bold; padding:2px 0;">SITE ID TP</td>
+              <td>:</td>
+              <td style="font-weight:bold;">${esc(s.siteIdTp)}</td>
+              <td style="font-weight:bold; border:1px solid #000; padding:2px 5px;">SN RTU</td>
+              <td colspan="2" style="border:1px solid #000; padding:2px 5px;">${esc(s.snRtu)}</td>
+            </tr>
+            <tr>
+              <td style="font-weight:bold; padding:2px 0;">SITE NAME TP</td>
+              <td>:</td>
+              <td>${esc(s.siteNameTp)}</td>
+              <td style="font-weight:bold; border:1px solid #000; padding:2px 5px;">No Sim Card</td>
+              <td colspan="2" style="border:1px solid #000; padding:2px 5px;">${esc(s.simCard)}</td>
+            </tr>
+            <tr>
+              <td style="font-weight:bold; padding:2px 0;">SITE ID TENANT</td>
+              <td>:</td>
+              <td>${esc(s.siteIdTenant)}</td>
+              <td style="font-weight:bold; border:1px solid #000; padding:2px 5px;">Install Date</td>
+              <td colspan="2" style="border:1px solid #000; padding:2px 5px;">${esc(s.installDate)}</td>
+            </tr>
+            <tr>
+              <td style="font-weight:bold; padding:2px 0;">IP ADDRESS</td>
+              <td>:</td>
+              <td>${esc(s.ipAddress)}</td>
+              <td colspan="3"></td>
+            </tr>
+            <tr>
+              <td style="font-weight:bold; padding:2px 0;">LONG</td>
+              <td>:</td>
+              <td>${esc(s.longitude)}</td>
+              <td colspan="3"></td>
+            </tr>
+            <tr>
+              <td style="font-weight:bold; padding:2px 0;">LAT</td>
+              <td>:</td>
+              <td>${esc(s.latitude)}</td>
+              <td colspan="3"></td>
+            </tr>
+            <tr>
+              <td style="font-weight:bold; padding:2px 0; vertical-align:top;">ALAMAT</td>
+              <td style="vertical-align:top;">:</td>
+              <td colspan="4" style="padding:2px 0;">${esc(s.alamat)}</td>
+            </tr>
+            <tr>
+              <td style="font-weight:bold; padding:2px 0;">PROVINCE</td>
+              <td>:</td>
+              <td>${esc(s.province)}</td>
+              <td colspan="3"></td>
+            </tr>
+          </table>
+
+          <!-- Tabel Checklist Utama 2 Sisi Sejajar -->
+          <table class="atp-table" style="font-size:8.5px; margin-bottom:12px;">
+            <colgroup>
+              <col style="width:4.5%" />
+              <col style="width:27%" />
+              <col style="width:9.5%" />
+              <col style="width:4.5%" />
+              <col style="width:4.5%" />
+              <col style="width:4.5%" />
+              <col style="width:27%" />
+              <col style="width:9.5%" />
+              <col style="width:4.5%" />
+              <col style="width:4.5%" />
+            </colgroup>
+            <tr>
+              <th colspan="10" class="bg-header-gray" style="text-align:center; font-size:10px; padding:4px; border:1.5px solid #000;">KOMPONEN RTU</th>
+            </tr>
+            <!-- Baris 1 -->
+            <tr>
+              <td style="text-align:center; font-weight:bold;">1</td>
+              <td style="font-weight:bold;">Power Input</td>
+              <td></td>
+              <td style="text-align:center;">${chkBox(s.p1_header_chk)}</td>
+              <td></td>
+              <td style="text-align:center; font-weight:bold;">6</td>
+              <td style="font-weight:bold;">KONDISI RTU</td>
+              <td style="text-align:center;">${esc(s.p6_status)}</td>
+              <td style="text-align:center;">${chkBox(s.p6_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.p6_nok)}</td>
+            </tr>
+            <!-- Baris 2 -->
+            <tr>
+              <td></td>
+              <td>a. Cable Power RTU</td>
+              <td style="text-align:center;">${esc(s.p1_a_status)}</td>
+              <td style="text-align:center;">${chkBox(s.p1_a_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.p1_a_nok)}</td>
+              <td style="text-align:center; font-weight:bold;">7</td>
+              <td style="font-weight:bold;">FUNGSI MONITORING</td>
+              <td style="text-align:center;">${esc(s.p7_status)}</td>
+              <td style="text-align:center;">${chkBox(s.p7_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.p7_nok)}</td>
+            </tr>
+            <!-- Baris 3 -->
+            <tr>
+              <td style="text-align:center; font-weight:bold;">2</td>
+              <td style="font-weight:bold;">Controller RTU</td>
+              <td></td>
+              <td style="text-align:center;">${chkBox(s.p2_header_chk)}</td>
+              <td></td>
+              <td style="text-align:center; font-weight:bold;">8</td>
+              <td style="font-weight:bold;">SYSTEM POWER</td>
+              <td style="text-align:center;">${esc(s.p8_status)}</td>
+              <td style="text-align:center;">${chkBox(s.p8_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.p8_nok)}</td>
+            </tr>
+            <!-- Baris 4 -->
+            <tr>
+              <td></td>
+              <td>a. LAN Cable to SMU</td>
+              <td style="text-align:center;">${esc(s.p2_a_status)}</td>
+              <td style="text-align:center;">${chkBox(s.p2_a_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.p2_a_nok)}</td>
+              <td style="text-align:center; font-weight:bold;">9</td>
+              <td style="font-weight:bold;">Pengukuran metring VS actual</td>
+              <td></td>
+              <td style="text-align:center;">${chkBox(s.p9_header_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.p9_header_nok)}</td>
+            </tr>
+            <!-- Baris 5 -->
+            <tr>
+              <td></td>
+              <td>b. lan Cable Internal RTU</td>
+              <td style="text-align:center;">${esc(s.p2_b_status)}</td>
+              <td style="text-align:center;">${chkBox(s.p2_b_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.p2_b_nok)}</td>
+              <td style="text-align:center;">${chkBox(s.p9_vac_lead)}</td>
+              <td><b>${esc(s.p9_vac_val)}</b> &nbsp; Volt AC</td>
+              <td style="text-align:center;">${esc(s.p9_vac_status)}</td>
+              <td style="text-align:center;">${chkBox(s.p9_vac_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.p9_vac_nok)}</td>
+            </tr>
+            <!-- Baris 6 -->
+            <tr>
+              <td style="text-align:center; font-weight:bold;">3</td>
+              <td style="font-weight:bold;">Antena</td>
+              <td></td>
+              <td style="text-align:center;">${chkBox(s.p3_header_chk)}</td>
+              <td></td>
+              <td></td>
+              <td>Load AC &nbsp; <b>${esc(s.p9_lac_val)}</b></td>
+              <td style="text-align:center;">${esc(s.p9_lac_status)}</td>
+              <td style="text-align:center;">${chkBox(s.p9_lac_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.p9_lac_nok)}</td>
+            </tr>
+            <!-- Baris 7 -->
+            <tr>
+              <td></td>
+              <td>a. Kondisi</td>
+              <td style="text-align:center;">${esc(s.p3_a_status)}</td>
+              <td style="text-align:center;">${chkBox(s.p3_a_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.p3_a_nok)}</td>
+              <td></td>
+              <td><b>${esc(s.p9_vdc_val)}</b> &nbsp; Volt DC</td>
+              <td style="text-align:center;">${esc(s.p9_vdc_status)}</td>
+              <td style="text-align:center;">${chkBox(s.p9_vdc_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.p9_vdc_nok)}</td>
+            </tr>
+            <!-- Baris 8 -->
+            <tr>
+              <td></td>
+              <td>b. Fungsi</td>
+              <td style="text-align:center;">${esc(s.p3_b_status)}</td>
+              <td style="text-align:center;">${chkBox(s.p3_b_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.p3_b_nok)}</td>
+              <td style="text-align:center;">${chkBox(s.p9_ldc_lead)}</td>
+              <td>Load DC &nbsp; <b>${esc(s.p9_ldc_val)}</b></td>
+              <td style="text-align:center;">${esc(s.p9_ldc_status)}</td>
+              <td style="text-align:center;">${chkBox(s.p9_ldc_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.p9_ldc_nok)}</td>
+            </tr>
+            <!-- Baris 9 -->
+            <tr>
+              <td style="text-align:center; font-weight:bold;">4</td>
+              <td style="font-weight:bold;">Rectifier Brand</td>
+              <td colspan="3" style="text-align:center; font-weight:bold;">${esc(s.rectifierBrand)}</td>
+              <td colspan="5" style="border:none;"></td>
+            </tr>
+            <!-- Baris 10 -->
+            <tr>
+              <td></td>
+              <td>Module Quantity</td>
+              <td colspan="3" style="text-align:center;">${esc(s.moduleQty)}</td>
+              <td colspan="5" style="border:none;"></td>
+            </tr>
+            <!-- Baris 11 -->
+            <tr>
+              <td style="text-align:center; font-weight:bold;">5</td>
+              <td style="font-weight:bold;">Batteray Brand</td>
+              <td colspan="3" style="text-align:center; font-weight:bold;">${esc(s.batteryBrand)}</td>
+              <td colspan="5" style="border:none;"></td>
+            </tr>
+            <!-- Baris 12 -->
+            <tr>
+              <td></td>
+              <td>Battery Capacity</td>
+              <td colspan="3" style="text-align:center;">${esc(s.batteryCap)}</td>
+              <td colspan="5" style="border:none;"></td>
+            </tr>
+            <!-- Baris 13 -->
+            <tr>
+              <td></td>
+              <td>Battery Quantity</td>
+              <td colspan="3" style="text-align:center;">${esc(s.batteryQty)}</td>
+              <td colspan="5" style="border:none;"></td>
+            </tr>
+            <!-- Header MONITORING RTU -->
+            <tr>
+              <th colspan="5" class="bg-header-gray" style="text-align:center; font-size:9.5px; padding:3px; border:1.5px solid #000;">MONITORING RTU</th>
+              <td colspan="5" style="border:none;"></td>
+            </tr>
+            <tr>
+              <td style="text-align:center;">${chkBox(s.mon_a_lead)}</td>
+              <td>a. Kondisi</td>
+              <td style="text-align:center;">${esc(s.mon_a_status)}</td>
+              <td style="text-align:center;">${chkBox(s.mon_a_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.mon_a_nok)}</td>
+              <td colspan="5" style="border:none;"></td>
+            </tr>
+            <tr>
+              <td style="text-align:center;">${chkBox(s.mon_b_lead)}</td>
+              <td>b. Fungsi</td>
+              <td style="text-align:center;">${esc(s.mon_b_status)}</td>
+              <td style="text-align:center;">${chkBox(s.mon_b_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.mon_b_nok)}</td>
+              <td colspan="5" style="border:none;"></td>
+            </tr>
+            <!-- Header ACCESSORIES & Status Monitoring (NMS) -->
+            <tr>
+              <th colspan="5" class="bg-header-gray" style="text-align:center; font-size:9.5px; padding:3px; border:1.5px solid #000;">ACCESSORIES</th>
+              <td style="border:none;"></td>
+              <th colspan="4" class="bg-header-gray" style="text-align:center; font-size:9.5px; padding:3px; border:1.5px solid #000;">Status Monitoring (NMS)</th>
+            </tr>
+            <tr>
+              <td style="text-align:center;">${chkBox(s.acc_a_lead)}</td>
+              <td>a. Cable LAN</td>
+              <td style="text-align:center;">${esc(s.acc_a_status)}</td>
+              <td style="text-align:center;">${chkBox(s.acc_a_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.acc_a_nok)}</td>
+              <td style="border:none;"></td>
+              <td style="text-align:center; font-weight:bold;">1</td>
+              <td colspan="2">All Measurement</td>
+              <td style="text-align:center;">${chkBox(s.nms_1)}</td>
+            </tr>
+            <tr>
+              <td style="text-align:center;">${chkBox(s.acc_b_lead)}</td>
+              <td>b. Cable Power</td>
+              <td style="text-align:center;">${esc(s.acc_b_status)}</td>
+              <td style="text-align:center;">${chkBox(s.acc_b_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.acc_b_nok)}</td>
+              <td style="border:none;"></td>
+              <td style="text-align:center; font-weight:bold;">2</td>
+              <td colspan="2">Rectifier Module</td>
+              <td style="text-align:center;">${chkBox(s.nms_2)}</td>
+            </tr>
+            <tr>
+              <td style="text-align:center;">${chkBox(s.acc_c_lead)}</td>
+              <td>c. Extend Cable Antena</td>
+              <td style="text-align:center;">${esc(s.acc_c_status)}</td>
+              <td style="text-align:center;">${chkBox(s.acc_c_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.acc_c_nok)}</td>
+              <td style="border:none;"></td>
+              <td style="text-align:center; font-weight:bold;">3</td>
+              <td colspan="2">Battery</td>
+              <td style="text-align:center;">${chkBox(s.nms_3)}</td>
+            </tr>
+            <tr>
+              <td style="text-align:center;">${chkBox(s.acc_d_lead)}</td>
+              <td>d. Bracket Antena</td>
+              <td style="text-align:center;">${esc(s.acc_d_status)}</td>
+              <td style="text-align:center;">${chkBox(s.acc_d_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.acc_d_nok)}</td>
+              <td style="border:none;"></td>
+              <td style="text-align:center; font-weight:bold;">4</td>
+              <td colspan="2">Alarm</td>
+              <td style="text-align:center;">${chkBox(s.nms_4)}</td>
+            </tr>
+            <tr>
+              <td style="text-align:center;">${chkBox(s.acc_e_lead)}</td>
+              <td>e. Conduit</td>
+              <td style="text-align:center;">${esc(s.acc_e_status)}</td>
+              <td style="text-align:center;">${chkBox(s.acc_e_ok)}</td>
+              <td style="text-align:center;">${chkBox(s.acc_e_nok)}</td>
+              <td colspan="5" style="border:none;"></td>
+            </tr>
+          </table>
+
+          <!-- Blok Tanda Tangan & Cap Perusahaan -->
+          <table class="atp-table" style="font-size:9px; border:1.5px solid #000;">
+            <colgroup>
+              <col style="width:25%" />
+              <col style="width:25%" />
+              <col style="width:25%" />
+              <col style="width:25%" />
+            </colgroup>
+            <tr>
+              <td colspan="4" style="height:14px; border:1.5px solid #000; background:#ffffff;"></td>
+            </tr>
+            <tr>
+              <th class="bg-sig-yellow" style="text-align:center; padding:4px; border:1.5px solid #000;">Technician QC (RTU)</th>
+              <th class="bg-sig-yellow" style="text-align:center; padding:4px; border:1.5px solid #000;">PM BMG</th>
+              <th class="bg-sig-yellow" style="text-align:center; padding:4px; border:1.5px solid #000;">PTI PROJECT</th>
+              <th class="bg-sig-yellow" style="text-align:center; padding:4px; border:1.5px solid #000;">IFORTE PROJECT</th>
+            </tr>
+            <tr>
+              <td style="text-align:center; font-weight:bold; padding:3px; border:1.5px solid #000;">${esc(s.sig_tech_name)}</td>
+              <td style="text-align:center; font-weight:bold; padding:3px; border:1.5px solid #000;">${esc(s.sig_pm_name)}</td>
+              <td style="text-align:center; font-weight:bold; padding:3px; border:1.5px solid #000;">${esc(s.sig_pti_name)}</td>
+              <td style="text-align:center; font-weight:bold; padding:3px; border:1.5px solid #000;">${esc(s.sig_iforte_name)}</td>
+            </tr>
+            <tr>
+              <td style="height:66px; text-align:center; vertical-align:middle; border-left:1.5px solid #000; border-right:1.5px solid #000; border-bottom:none; padding:2px;">
+                <img src="${techSigSrc}" alt="TTD Technician QC" style="max-height:60px; max-width:92%; object-fit:contain; margin:0 auto; display:block;" />
+              </td>
+              <td style="height:66px; text-align:center; vertical-align:middle; border-left:1.5px solid #000; border-right:1.5px solid #000; border-bottom:none; padding:2px;">
+                <img src="${pmSigSrc}" alt="Cap & TTD PM BMG" style="max-height:60px; max-width:92%; object-fit:contain; margin:0 auto; display:block;" />
+              </td>
+              <td style="height:66px; text-align:center; vertical-align:middle; border-left:1.5px solid #000; border-right:1.5px solid #000; border-bottom:none; padding:2px;">
+                ${s.sig_pti_img ? `<img src="${s.sig_pti_img}" alt="TTD PTI" style="max-height:60px; max-width:92%; object-fit:contain; margin:0 auto; display:block;" />` : ''}
+              </td>
+              <td style="height:66px; text-align:center; vertical-align:middle; border-left:1.5px solid #000; border-right:1.5px solid #000; border-bottom:none; padding:2px;">
+                ${s.sig_iforte_img ? `<img src="${s.sig_iforte_img}" alt="TTD IFORTE" style="max-height:60px; max-width:92%; object-fit:contain; margin:0 auto; display:block;" />` : ''}
+              </td>
+            </tr>
+            <tr>
+              <td style="text-align:center; padding:3px; border-left:1.5px solid #000; border-right:1.5px solid #000; border-top:none; border-bottom:1.5px solid #000;">${esc(s.sig_tech_date)}</td>
+              <td style="text-align:center; padding:3px; border-left:1.5px solid #000; border-right:1.5px solid #000; border-top:none; border-bottom:1.5px solid #000;">${esc(s.sig_pm_date)}</td>
+              <td style="text-align:center; padding:3px; border-left:1.5px solid #000; border-right:1.5px solid #000; border-top:none; border-bottom:1.5px solid #000;">${esc(s.sig_pti_date)}</td>
+              <td style="text-align:center; padding:3px; border-left:1.5px solid #000; border-right:1.5px solid #000; border-top:none; border-bottom:1.5px solid #000;">${esc(s.sig_iforte_date)}</td>
+            </tr>
+          </table>
+        </div>
+      `;
+
+      // ---------------- HALAMAN 2 & 3: ACCEPTANCE DOCUMENTATIONS ----------------
+      const buildDocPageHtml = (slots) => {
+        let rowsHtml = '';
+        for (let i = 0; i < slots.length; i += 2) {
+          const left = slots[i];
+          const right = slots[i + 1];
+          const leftTitle = getSlotTitle(left);
+          const rightTitle = getSlotTitle(right);
+          const leftImg = s.photos[left.id]
+            ? `<div class="photo-box-inner"><img src="${s.photos[left.id]}" alt="${esc(leftTitle)}" /></div>`
+            : `<div class="photo-box-inner"><span style="color:#9ca3af; font-style:italic;">[Belum ada foto: ${esc(leftTitle)}]</span></div>`;
+          const rightImg = s.photos[right.id]
+            ? `<div class="photo-box-inner"><img src="${s.photos[right.id]}" alt="${esc(rightTitle)}" /></div>`
+            : `<div class="photo-box-inner"><span style="color:#9ca3af; font-style:italic;">[Belum ada foto: ${esc(rightTitle)}]</span></div>`;
+
+          rowsHtml += `
+            <tr>
+              <th class="bg-header-gray" style="text-align:center; font-size:10px; padding:4px; border:1.5px solid #000;">${esc(leftTitle)}</th>
+              <th class="bg-header-gray" style="text-align:center; font-size:10px; padding:4px; border:1.5px solid #000;">${esc(rightTitle)}</th>
+            </tr>
+            <tr>
+              <td class="photo-box-cell" style="border:1.5px solid #000;">${leftImg}</td>
+              <td class="photo-box-cell" style="border:1.5px solid #000;">${rightImg}</td>
+            </tr>
+          `;
+        }
+
+        return `
+          <div class="a4-sheet">
+            <div style="text-align:center; font-weight:bold; font-size:13px; margin-bottom:6px;">
+              ACCEPTANCE DOCUMENTATIONS
+            </div>
+
+            <!-- Tabel SITE DATA 2 Kolom -->
+            <table class="atp-table" style="font-size:8.5px; margin-bottom:6px; border:1.5px solid #000;">
+              <colgroup>
+                <col style="width:14%" />
+                <col style="width:2%" />
+                <col style="width:34%" />
+                <col style="width:14%" />
+                <col style="width:2%" />
+                <col style="width:34%" />
+              </colgroup>
+              <tr>
+                <th colspan="6" class="bg-header-gray" style="text-align:center; font-size:10px; padding:3px; border:1.5px solid #000;">SITE DATA</th>
+              </tr>
+              <tr>
+                <td style="font-weight:bold;">SITE ID PTI</td>
+                <td style="text-align:center;">:</td>
+                <td style="font-weight:bold;">${esc(s.siteIdTp)}</td>
+                <td style="font-weight:bold;">SN</td>
+                <td style="text-align:center;">:</td>
+                <td>${esc(s.snRtu)}</td>
+              </tr>
+              <tr>
+                <td style="font-weight:bold;">SITE NAME</td>
+                <td style="text-align:center;">:</td>
+                <td>${esc(s.siteNameTp)}</td>
+                <td style="font-weight:bold;">No Sim Card</td>
+                <td style="text-align:center;">:</td>
+                <td>${esc(s.simCard)}</td>
+              </tr>
+              <tr>
+                <td style="font-weight:bold;">SITE ID TENANT</td>
+                <td style="text-align:center;">:</td>
+                <td>${esc(s.siteIdTenant)}</td>
+                <td style="font-weight:bold;">ALAMAT SITE</td>
+                <td style="text-align:center;">:</td>
+                <td rowspan="2" style="vertical-align:top;">${esc(s.alamat)}</td>
+              </tr>
+              <tr>
+                <td style="font-weight:bold;">IP Addres</td>
+                <td style="text-align:center;">:</td>
+                <td>${esc(s.ipAddress)}</td>
+                <td style="font-weight:bold;">AREA</td>
+                <td style="text-align:center;">:</td>
+              </tr>
+              <tr>
+                <td style="font-weight:bold;">LONG</td>
+                <td style="text-align:center;">:</td>
+                <td>${esc(s.longitude)}</td>
+                <td style="font-weight:bold;">Install Date</td>
+                <td style="text-align:center;">:</td>
+                <td>${esc(s.installDate)}</td>
+              </tr>
+              <tr>
+                <td style="font-weight:bold;">LAT</td>
+                <td style="text-align:center;">:</td>
+                <td>${esc(s.latitude)}</td>
+                <td style="font-weight:bold;">Supplier Name</td>
+                <td style="text-align:center;">:</td>
+                <td>${esc(s.supplierName)}</td>
+              </tr>
+            </table>
+
+            <!-- Grid Foto 2x3 -->
+            <table class="atp-table" style="border:1.5px solid #000;">
+              <colgroup>
+                <col style="width:50%" />
+                <col style="width:50%" />
+              </colgroup>
+              ${rowsHtml}
+            </table>
+          </div>
+        `;
+      };
+
+      container.innerHTML = page1Html + buildDocPageHtml(PHOTO_SLOTS_P2) + buildDocPageHtml(PHOTO_SLOTS_P3);
+    }
+
+    // =========================================================================
+    // 6. UTILITAS CANVAS FULL-CELL FRAME + TWOCELLANCHOR (ANTI-GESER EXCELJS)
+    // =========================================================================
+    /**
+     * Merender gambar sumber (foto portrait/landscape atau tanda tangan/cap) ke dalam
+     * kanvas berbingkai putih seukuran penuh kotak sel target Excel, dengan posisi gambar
+     * asli tepat di titik tengah (horizontal & vertikal) serta padding aman dari garis border.
+     */
+    function createFramedCenterImage(imageSource, targetBoxWidthPx, targetBoxHeightPx, paddingPx = 12) {
+      return new Promise((resolve) => {
+        if (!imageSource) {
+          resolve(null);
+          return;
+        }
+
+        const img = new Image();
+        img.onload = () => {
+          const naturalW = img.naturalWidth || img.width || 100;
+          const naturalH = img.naturalHeight || img.height || 100;
+
+          const boxW = Math.max(40, Math.round(targetBoxWidthPx));
+          const boxH = Math.max(40, Math.round(targetBoxHeightPx));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = boxW;
+          canvas.height = boxH;
+          const ctx = canvas.getContext('2d');
+
+          // Isi latar belakang putih bersih agar menyatu dengan sel Excel
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, boxW, boxH);
+
+          // Hitung dimensi proporsional (contain) dengan padding aman dari garis border hitam
+          const availW = Math.max(16, boxW - paddingPx * 2);
+          const availH = Math.max(16, boxH - paddingPx * 2);
+          const scale = Math.min(availW / naturalW, availH / naturalH);
+
+          const drawW = Math.round(naturalW * scale);
+          const drawH = Math.round(naturalH * scale);
+
+          // Posisi tepat di titik tengah horizontal & vertikal bingkai
+          const drawX = Math.round((boxW - drawW) / 2);
+          const drawY = Math.round((boxH - drawH) / 2);
+
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+          resolve(canvas.toDataURL('image/png'));
+        };
+
+        img.onerror = () => resolve(null);
+        img.src = imageSource;
+      });
+    }
+
+    /**
+     * Menyematkan gambar berbingkai penuh ke rentang sel Excel [startCol..endCol, startRow..endRow] (1-based)
+     * menggunakan TwoCellAnchor (tl ke br) sehingga Excel mengunci gambar 100% center di tengah kotak.
+     */
+    async function addCenteredImageToRange(workbook, worksheet, base64DataUrl, startCol, startRow, endCol, endRow, paddingPx = 12) {
+      if (!base64DataUrl) return;
+
+      // Hitung rasio dimensi piksel target kotak sel
+      let totalBoxWidthPx = 0;
+      for (let c = startCol; c <= endCol; c++) {
+        const wUnits = worksheet.getColumn(c).width || 10;
+        totalBoxWidthPx += wUnits * 7.5;
+      }
+
+      let totalBoxHeightPx = 0;
+      for (let r = startRow; r <= endRow; r++) {
+        const hPt = worksheet.getRow(r).height || 15;
+        totalBoxHeightPx += hPt * (96 / 72);
+      }
+
+      // Gunakan resolusi tinggi (skala 2x) agar hasil cetak / zoom tetap tajam
+      const framedDataUrl = await createFramedCenterImage(
+        base64DataUrl,
+        totalBoxWidthPx * 2,
+        totalBoxHeightPx * 2,
+        paddingPx * 2
+      );
+
+      if (!framedDataUrl) return;
+
+      const imageId = workbook.addImage({
+        base64: framedDataUrl,
+        extension: 'png'
+      });
+
+      // TwoCellAnchor dengan margin mikro (0.02) agar garis border medium sel tetap terlihat tajam
+      worksheet.addImage(imageId, {
+        tl: { col: (startCol - 1) + 0.02, row: (startRow - 1) + 0.02 },
+        br: { col: endCol - 0.02, row: endRow - 0.02 },
+        editAs: 'twoCell'
+      });
+    }
+
+    // =========================================================================
+    // 7. EXPORT KE EXCEL (.XLSX) DENGAN 3 SHEET & GAMBAR 100% CENTER
+    // =========================================================================
+    async function exportToExcel() {
+      if (typeof ExcelJS === 'undefined' || typeof saveAs === 'undefined') {
+        showToast('Library ExcelJS sedang dimuat, silakan coba beberapa detik lagi.', 'error');
+        return;
+      }
+
+      showToast('Menyiapkan file Excel (.xlsx) dengan layout presisi...', 'info');
+
+      try {
+        const s = appState;
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'FORM ATP CHECK INTEGRASI NMS';
+        wb.created = new Date();
+
+        const thinBorder = {
+          top: { style: 'thin', color: { argb: 'FF000000' } },
+          left: { style: 'thin', color: { argb: 'FF000000' } },
+          bottom: { style: 'thin', color: { argb: 'FF000000' } },
+          right: { style: 'thin', color: { argb: 'FF000000' } }
+        };
+
+        const medBorder = {
+          top: { style: 'medium', color: { argb: 'FF000000' } },
+          left: { style: 'medium', color: { argb: 'FF000000' } },
+          bottom: { style: 'medium', color: { argb: 'FF000000' } },
+          right: { style: 'medium', color: { argb: 'FF000000' } }
+        };
+
+        const grayFill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE5E7EB' }
+        };
+
+        const yellowFill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFFF00' }
+        };
+
+        const sym = (v) => (v ? '☑' : '☐');
+
+        // =====================================================================
+        // SHEET 1: FORM ATP CHECK
+        // =====================================================================
+        const ws1 = wb.addWorksheet('FORM ATP CHECK', {
+          views: [{ showGridLines: true }],
+          pageSetup: {
+            paperSize: 9, // A4
+            orientation: 'portrait',
+            fitToPage: true,
+            fitToWidth: 1,
+            fitToHeight: 1,
+            margins: { left: 0.3, right: 0.3, top: 0.35, bottom: 0.35, header: 0.15, footer: 0.15 }
+          }
+        });
+
+        // 12 Kolom (A..L) agar pembagian checklist 2 sisi & tanda tangan 4 kolom (3 kolom per tanda tangan) pas simetris
+        ws1.columns = [
+          { width: 4.5 },  // A: No Kiri
+          { width: 22 },   // B: Item Kiri
+          { width: 9.5 },  // C: Status Kiri
+          { width: 4.5 },  // D: OK Kiri
+          { width: 4.5 },  // E: NOK Kiri
+          { width: 2.5 },  // F: Pemisah Tengah
+          { width: 4.5 },  // G: No Kanan
+          { width: 23 },   // H: Item Kanan
+          { width: 9.5 },  // I: Status Kanan
+          { width: 4.5 },  // J: OK Kanan
+          { width: 4.5 },  // K: NOK Kanan
+          { width: 4.5 }   // L: Ekstra simetri 4x3 kolom untuk blok tanda tangan
+        ];
+
+        const styleRange1 = (r1, c1, r2, c2, opts = {}) => {
+          for (let r = r1; r <= r2; r++) {
+            for (let c = c1; c <= c2; c++) {
+              const cell = ws1.getCell(r, c);
+              if (opts.font) cell.font = opts.font;
+              if (opts.fill) cell.fill = opts.fill;
+              if (opts.alignment) cell.alignment = opts.alignment;
+              if (opts.border) cell.border = opts.border;
+            }
+          }
+        };
+
+        // Judul Form (Row 1 - 2)
+        ws1.mergeCells('A1:L1');
+        ws1.getCell('A1').value = 'FORM ATP CHECK INTEGRASI NMS';
+        ws1.getCell('A1').font = { name: 'Arial', size: 13, bold: true };
+        ws1.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+        ws1.getRow(1).height = 22;
+
+        ws1.mergeCells('A2:L2');
+        ws1.getCell('A2').value = `No. : ${s.formNo || ''}`;
+        ws1.getCell('A2').font = { name: 'Arial', size: 9.5, bold: true };
+        ws1.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
+        ws1.getRow(2).height = 17;
+
+        ws1.getRow(3).height = 6;
+
+        // Info Site 2 Sisi Sejajar (Row 4 - 11)
+        const siteRows = [
+          { lbl: 'SITE ID TP', val: s.siteIdTp, boldVal: true, rLbl: 'SN RTU', rVal: s.snRtu },
+          { lbl: 'SITE NAME TP', val: s.siteNameTp, boldVal: false, rLbl: 'No Sim Card', rVal: s.simCard },
+          { lbl: 'SITE ID TENANT', val: s.siteIdTenant, boldVal: false, rLbl: 'Install Date', rVal: s.installDate },
+          { lbl: 'IP ADDRESS', val: s.ipAddress, boldVal: false },
+          { lbl: 'LONG', val: s.longitude, boldVal: false },
+          { lbl: 'LAT', val: s.latitude, boldVal: false },
+          { lbl: 'ALAMAT', val: s.alamat, boldVal: false, spanFull: true },
+          { lbl: 'PROVINCE', val: s.province, boldVal: false }
+        ];
+
+        siteRows.forEach((item, idx) => {
+          const r = 4 + idx;
+          ws1.getRow(r).height = item.spanFull ? 24 : 16;
+
+          ws1.mergeCells(r, 1, r, 2);
+          ws1.getCell(r, 1).value = item.lbl;
+          ws1.getCell(r, 1).font = { name: 'Arial', size: 9, bold: true };
+          ws1.getCell(r, 1).alignment = { vertical: item.spanFull ? 'top' : 'middle' };
+
+          ws1.getCell(r, 3).value = `: ${item.val || ''}`;
+          ws1.getCell(r, 3).font = { name: 'Arial', size: 9, bold: Boolean(item.boldVal) };
+          ws1.getCell(r, 3).alignment = { vertical: item.spanFull ? 'top' : 'middle', wrapText: true };
+
+          if (item.spanFull) {
+            ws1.mergeCells(r, 3, r, 12);
+          } else {
+            ws1.mergeCells(r, 3, r, 7);
+          }
+
+          if (item.rLbl) {
+            ws1.mergeCells(r, 8, r, 9);
+            ws1.getCell(r, 8).value = item.rLbl;
+            styleRange1(r, 8, r, 9, {
+              font: { name: 'Arial', size: 9, bold: true },
+              border: thinBorder,
+              alignment: { vertical: 'middle', indent: 1 }
+            });
+
+            ws1.mergeCells(r, 10, r, 12);
+            ws1.getCell(r, 10).value = item.rVal || '';
+            styleRange1(r, 10, r, 12, {
+              font: { name: 'Arial', size: 9 },
+              border: thinBorder,
+              alignment: { vertical: 'middle', indent: 1 }
+            });
+          }
+        });
+
+        ws1.getRow(12).height = 7;
+
+        // Header KOMPONEN RTU (Row 13)
+        ws1.mergeCells('A13:L13');
+        ws1.getCell('A13').value = 'KOMPONEN RTU';
+        styleRange1(13, 1, 13, 12, {
+          font: { name: 'Arial', size: 10, bold: true },
+          fill: grayFill,
+          border: medBorder,
+          alignment: { horizontal: 'center', vertical: 'middle' }
+        });
+        ws1.getRow(13).height = 20;
+
+        // Helper baris checklist sisi kiri (Col A..E) dan sisi kanan (Col G..L)
+        const setLeftChecklistRow = (r, no, text, status, okVal, nokVal, opts = {}) => {
+          ws1.getCell(r, 1).value = no;
+          ws1.getCell(r, 2).value = text;
+          ws1.getCell(r, 3).value = status;
+          ws1.getCell(r, 4).value = okVal;
+          ws1.getCell(r, 5).value = nokVal;
+
+          styleRange1(r, 1, r, 5, {
+            font: { name: 'Arial', size: 8.5, bold: Boolean(opts.bold) },
+            border: thinBorder,
+            alignment: { vertical: 'middle' }
+          });
+          ws1.getCell(r, 1).alignment = { horizontal: 'center', vertical: 'middle' };
+          ws1.getCell(r, 3).alignment = { horizontal: 'center', vertical: 'middle' };
+          ws1.getCell(r, 4).alignment = { horizontal: 'center', vertical: 'middle' };
+          ws1.getCell(r, 5).alignment = { horizontal: 'center', vertical: 'middle' };
+
+          if (opts.mergeStatusToE) {
+            ws1.mergeCells(r, 3, r, 5);
+          }
+        };
+
+        const setRightChecklistRow = (r, no, text, status, okVal, nokVal, opts = {}) => {
+          ws1.getCell(r, 7).value = no;
+          ws1.mergeCells(r, 8, r, 9);
+          ws1.getCell(r, 8).value = text;
+          ws1.getCell(r, 10).value = status;
+          ws1.getCell(r, 11).value = okVal;
+          ws1.getCell(r, 12).value = nokVal;
+
+          styleRange1(r, 7, r, 12, {
+            font: { name: 'Arial', size: 8.5, bold: Boolean(opts.bold) },
+            border: thinBorder,
+            alignment: { vertical: 'middle' }
+          });
+          ws1.getCell(r, 7).alignment = { horizontal: 'center', vertical: 'middle' };
+          ws1.getCell(r, 10).alignment = { horizontal: 'center', vertical: 'middle' };
+          ws1.getCell(r, 11).alignment = { horizontal: 'center', vertical: 'middle' };
+          ws1.getCell(r, 12).alignment = { horizontal: 'center', vertical: 'middle' };
+        };
+
+        // Row 14 - 26: Isi Checklist Komponen RTU
+        for (let r = 14; r <= 34; r++) ws1.getRow(r).height = 16.5;
+
+        setLeftChecklistRow(14, 1, 'Power Input', '', sym(s.p1_header_chk), '', { bold: true });
+        setRightChecklistRow(14, 6, 'KONDISI RTU', s.p6_status, sym(s.p6_ok), sym(s.p6_nok), { bold: true });
+
+        setLeftChecklistRow(15, '', 'a. Cable Power RTU', s.p1_a_status, sym(s.p1_a_ok), sym(s.p1_a_nok));
+        setRightChecklistRow(15, 7, 'FUNGSI MONITORING', s.p7_status, sym(s.p7_ok), sym(s.p7_nok), { bold: true });
+
+        setLeftChecklistRow(16, 2, 'Controller RTU', '', sym(s.p2_header_chk), '', { bold: true });
+        setRightChecklistRow(16, 8, 'SYSTEM POWER', s.p8_status, sym(s.p8_ok), sym(s.p8_nok), { bold: true });
+
+        setLeftChecklistRow(17, '', 'a. LAN Cable to SMU', s.p2_a_status, sym(s.p2_a_ok), sym(s.p2_a_nok));
+        setRightChecklistRow(17, 9, 'Pengukuran metring VS actual', '', sym(s.p9_header_ok), sym(s.p9_header_nok), { bold: true });
+
+        setLeftChecklistRow(18, '', 'b. lan Cable Internal RTU', s.p2_b_status, sym(s.p2_b_ok), sym(s.p2_b_nok));
+        setRightChecklistRow(18, sym(s.p9_vac_lead), `${s.p9_vac_val || ''}   Volt AC`, s.p9_vac_status, sym(s.p9_vac_ok), sym(s.p9_vac_nok));
+
+        setLeftChecklistRow(19, 3, 'Antena', '', sym(s.p3_header_chk), '', { bold: true });
+        setRightChecklistRow(19, '', `Load AC   ${s.p9_lac_val || ''}`, s.p9_lac_status, sym(s.p9_lac_ok), sym(s.p9_lac_nok));
+
+        setLeftChecklistRow(20, '', 'a. Kondisi', s.p3_a_status, sym(s.p3_a_ok), sym(s.p3_a_nok));
+        setRightChecklistRow(20, '', `${s.p9_vdc_val || ''}   Volt DC`, s.p9_vdc_status, sym(s.p9_vdc_ok), sym(s.p9_vdc_nok));
+
+        setLeftChecklistRow(21, '', 'b. Fungsi', s.p3_b_status, sym(s.p3_b_ok), sym(s.p3_b_nok));
+        setRightChecklistRow(21, sym(s.p9_ldc_lead), `Load DC   ${s.p9_ldc_val || ''}`, s.p9_ldc_status, sym(s.p9_ldc_ok), sym(s.p9_ldc_nok));
+
+        setLeftChecklistRow(22, 4, 'Rectifier Brand', s.rectifierBrand, '', '', { bold: true, mergeStatusToE: true });
+        setLeftChecklistRow(23, '', 'Module Quantity', s.moduleQty, '', '', { mergeStatusToE: true });
+        setLeftChecklistRow(24, 5, 'Batteray Brand', s.batteryBrand, '', '', { bold: true, mergeStatusToE: true });
+        setLeftChecklistRow(25, '', 'Battery Capacity', s.batteryCap, '', '', { mergeStatusToE: true });
+        setLeftChecklistRow(26, '', 'Battery Quantity', s.batteryQty, '', '', { mergeStatusToE: true });
+
+        // Row 27: Header MONITORING RTU
+        ws1.mergeCells('A27:E27');
+        ws1.getCell('A27').value = 'MONITORING RTU';
+        styleRange1(27, 1, 27, 5, {
+          font: { name: 'Arial', size: 9.5, bold: true },
+          fill: grayFill,
+          border: medBorder,
+          alignment: { horizontal: 'center', vertical: 'middle' }
+        });
+
+        setLeftChecklistRow(28, sym(s.mon_a_lead), 'a. Kondisi', s.mon_a_status, sym(s.mon_a_ok), sym(s.mon_a_nok));
+        setLeftChecklistRow(29, sym(s.mon_b_lead), 'b. Fungsi', s.mon_b_status, sym(s.mon_b_ok), sym(s.mon_b_nok));
+
+        // Row 30: Header ACCESSORIES & Status Monitoring (NMS)
+        ws1.mergeCells('A30:E30');
+        ws1.getCell('A30').value = 'ACCESSORIES';
+        styleRange1(30, 1, 30, 5, {
+          font: { name: 'Arial', size: 9.5, bold: true },
+          fill: grayFill,
+          border: medBorder,
+          alignment: { horizontal: 'center', vertical: 'middle' }
+        });
+
+        ws1.mergeCells('G30:L30');
+        ws1.getCell('G30').value = 'Status Monitoring (NMS)';
+        styleRange1(30, 7, 30, 12, {
+          font: { name: 'Arial', size: 9.5, bold: true },
+          fill: grayFill,
+          border: medBorder,
+          alignment: { horizontal: 'center', vertical: 'middle' }
+        });
+
+        // Row 31 - 35: Accessories & NMS Status
+        const accList = [
+          { r: 31, lead: s.acc_a_lead, lbl: 'a. Cable LAN', st: s.acc_a_status, ok: s.acc_a_ok, nok: s.acc_a_nok, nmsNo: 1, nmsLbl: 'All Measurement', nmsChk: s.nms_1 },
+          { r: 32, lead: s.acc_b_lead, lbl: 'b. Cable Power', st: s.acc_b_status, ok: s.acc_b_ok, nok: s.acc_b_nok, nmsNo: 2, nmsLbl: 'Rectifier Module', nmsChk: s.nms_2 },
+          { r: 33, lead: s.acc_c_lead, lbl: 'c. Extend Cable Antena', st: s.acc_c_status, ok: s.acc_c_ok, nok: s.acc_c_nok, nmsNo: 3, nmsLbl: 'Battery', nmsChk: s.nms_3 },
+          { r: 34, lead: s.acc_d_lead, lbl: 'd. Bracket Antena', st: s.acc_d_status, ok: s.acc_d_ok, nok: s.acc_d_nok, nmsNo: 4, nmsLbl: 'Alarm', nmsChk: s.nms_4 },
+          { r: 35, lead: s.acc_e_lead, lbl: 'e. Conduit', st: s.acc_e_status, ok: s.acc_e_ok, nok: s.acc_e_nok }
+        ];
+        ws1.getRow(35).height = 16.5;
+
+        accList.forEach(item => {
+          setLeftChecklistRow(item.r, sym(item.lead), item.lbl, item.st, sym(item.ok), sym(item.nok));
+          if (item.nmsNo) {
+            ws1.getCell(item.r, 7).value = item.nmsNo;
+            ws1.mergeCells(item.r, 8, item.r, 11);
+            ws1.getCell(item.r, 8).value = item.nmsLbl;
+            ws1.getCell(item.r, 12).value = sym(item.nmsChk);
+
+            styleRange1(item.r, 7, item.r, 12, {
+              font: { name: 'Arial', size: 8.5 },
+              border: thinBorder,
+              alignment: { vertical: 'middle' }
+            });
+            ws1.getCell(item.r, 7).alignment = { horizontal: 'center', vertical: 'middle' };
+            ws1.getCell(item.r, 7).font = { name: 'Arial', size: 8.5, bold: true };
+            ws1.getCell(item.r, 12).alignment = { horizontal: 'center', vertical: 'middle' };
+          }
+        });
+
+        ws1.getRow(36).height = 8;
+
+        // Blok Tanda Tangan & Cap Perusahaan (Row 37 - 41, masing-masing 3 kolom: A..C, D..F, G..I, J..L)
+        ws1.mergeCells('A37:L37');
+        styleRange1(37, 1, 37, 12, { border: medBorder });
+        ws1.getRow(37).height = 14;
+
+        const sigBlocks = [
+          { c1: 1, c2: 3, role: 'Technician QC (RTU)', name: s.sig_tech_name, date: s.sig_tech_date, img: s.sig_tech_img || DEFAULT_TECH_SIGNATURE_PNG },
+          { c1: 4, c2: 6, role: 'PM BMG', name: s.sig_pm_name, date: s.sig_pm_date, img: s.sig_pm_img || DEFAULT_PM_STAMP_SIG_PNG },
+          { c1: 7, c2: 9, role: 'PTI PROJECT', name: s.sig_pti_name, date: s.sig_pti_date, img: s.sig_pti_img },
+          { c1: 10, c2: 12, role: 'IFORTE PROJECT', name: s.sig_iforte_name, date: s.sig_iforte_date, img: s.sig_iforte_img }
+        ];
+
+        ws1.getRow(38).height = 19;
+        ws1.getRow(39).height = 18;
+        ws1.getRow(40).height = 68;
+        ws1.getRow(41).height = 17;
+
+        for (const sig of sigBlocks) {
+          // Row 38: Header Kuning
+          ws1.mergeCells(38, sig.c1, 38, sig.c2);
+          ws1.getCell(38, sig.c1).value = sig.role;
+          styleRange1(38, sig.c1, 38, sig.c2, {
+            font: { name: 'Arial', size: 9, bold: true },
+            fill: yellowFill,
+            border: medBorder,
+            alignment: { horizontal: 'center', vertical: 'middle' }
+          });
+
+          // Row 39: Nama Personel
+          ws1.mergeCells(39, sig.c1, 39, sig.c2);
+          ws1.getCell(39, sig.c1).value = sig.name || '';
+          styleRange1(39, sig.c1, 39, sig.c2, {
+            font: { name: 'Arial', size: 9, bold: true },
+            border: medBorder,
+            alignment: { horizontal: 'center', vertical: 'middle' }
+          });
+
+          // Row 40: Kotak Gambar Tanda Tangan / Cap (Border kiri & kanan medium)
+          ws1.mergeCells(40, sig.c1, 40, sig.c2);
+          for (let c = sig.c1; c <= sig.c2; c++) {
+            ws1.getCell(40, c).border = {
+              left: c === sig.c1 ? { style: 'medium', color: { argb: 'FF000000' } } : undefined,
+              right: c === sig.c2 ? { style: 'medium', color: { argb: 'FF000000' } } : undefined
+            };
+          }
+
+          // Sisipkan Tanda Tangan / Cap 100% Center di dalam [sig.c1..sig.c2, Row 40]
+          if (sig.img) {
+            await addCenteredImageToRange(wb, ws1, sig.img, sig.c1, 40, sig.c2, 40, 6);
+          }
+
+          // Row 41: Tanggal di bagian bawah kotak
+          ws1.mergeCells(41, sig.c1, 41, sig.c2);
+          ws1.getCell(41, sig.c1).value = sig.date || '';
+          for (let c = sig.c1; c <= sig.c2; c++) {
+            const cell = ws1.getCell(41, c);
+            cell.font = { name: 'Arial', size: 8.5 };
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.border = {
+              left: c === sig.c1 ? { style: 'medium', color: { argb: 'FF000000' } } : undefined,
+              right: c === sig.c2 ? { style: 'medium', color: { argb: 'FF000000' } } : undefined,
+              bottom: { style: 'medium', color: { argb: 'FF000000' } }
+            };
+          }
+        }
+
+        // =====================================================================
+        // SHEET 2 & 3: DOKUMENTASI HAL 1 & DOKUMENTASI HAL 2
+        // =====================================================================
+        const buildDocumentationSheet = async (sheetName, slots) => {
+          const ws = wb.addWorksheet(sheetName, {
+            views: [{ showGridLines: true }],
+            pageSetup: {
+              paperSize: 9, // A4
+              orientation: 'portrait',
+              fitToPage: true,
+              fitToWidth: 1,
+              fitToHeight: 1,
+              margins: { left: 0.3, right: 0.3, top: 0.3, bottom: 0.3, header: 0.15, footer: 0.15 }
+            }
+          });
+
+          // 6 Kolom (A..F): A..C sisi kiri, D..F sisi kanan
+          ws.columns = [
+            { width: 15 },  // A: Label Kiri
+            { width: 2.5 }, // B: ':' Kiri
+            { width: 32 },  // C: Nilai Kiri
+            { width: 15 },  // D: Label Kanan
+            { width: 2.5 }, // E: ':' Kanan
+            { width: 32 }   // F: Nilai Kanan
+          ];
+
+          const styleRange = (r1, c1, r2, c2, opts = {}) => {
+            for (let r = r1; r <= r2; r++) {
+              for (let c = c1; c <= c2; c++) {
+                const cell = ws.getCell(r, c);
+                if (opts.font) cell.font = opts.font;
+                if (opts.fill) cell.fill = opts.fill;
+                if (opts.alignment) cell.alignment = opts.alignment;
+                if (opts.border) cell.border = opts.border;
+              }
+            }
+          };
+
+          // Row 1: Judul
+          ws.mergeCells('A1:F1');
+          ws.getCell('A1').value = 'ACCEPTANCE DOCUMENTATIONS';
+          ws.getCell('A1').font = { name: 'Arial', size: 12, bold: true };
+          ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+          ws.getRow(1).height = 20;
+
+          // Row 2: Header SITE DATA
+          ws.mergeCells('A2:F2');
+          ws.getCell('A2').value = 'SITE DATA';
+          styleRange(2, 1, 2, 6, {
+            font: { name: 'Arial', size: 10, bold: true },
+            fill: grayFill,
+            border: medBorder,
+            alignment: { horizontal: 'center', vertical: 'middle' }
+          });
+          ws.getRow(2).height = 18;
+
+          // Row 3 - 8: Tabel SITE DATA 2 Kolom
+          const metaRows = [
+            { lLbl: 'SITE ID PTI', lVal: s.siteIdTp, lBold: true, rLbl: 'SN', rVal: s.snRtu },
+            { lLbl: 'SITE NAME', lVal: s.siteNameTp, lBold: false, rLbl: 'No Sim Card', rVal: s.simCard },
+            { lLbl: 'SITE ID TENANT', lVal: s.siteIdTenant, lBold: false, rLbl: 'ALAMAT SITE', rVal: s.alamat, mergeRightAddr: true },
+            { lLbl: 'IP Addres', lVal: s.ipAddress, lBold: false, rLbl: 'AREA', rVal: '' },
+            { lLbl: 'LONG', lVal: s.longitude, lBold: false, rLbl: 'Install Date', rVal: s.installDate },
+            { lLbl: 'LAT', lVal: s.latitude, lBold: false, rLbl: 'Supplier Name', rVal: s.supplierName }
+          ];
+
+          metaRows.forEach((m, idx) => {
+            const r = 3 + idx;
+            ws.getRow(r).height = 16.5;
+
+            ws.getCell(r, 1).value = m.lLbl;
+            ws.getCell(r, 2).value = ':';
+            ws.getCell(r, 3).value = m.lVal || '';
+
+            styleRange(r, 1, r, 3, {
+              font: { name: 'Arial', size: 8.5, bold: false },
+              border: thinBorder,
+              alignment: { vertical: 'middle' }
+            });
+            ws.getCell(r, 1).font = { name: 'Arial', size: 8.5, bold: true };
+            ws.getCell(r, 2).alignment = { horizontal: 'center', vertical: 'middle' };
+            if (m.lBold) ws.getCell(r, 3).font = { name: 'Arial', size: 8.5, bold: true };
+
+            ws.getCell(r, 4).value = m.rLbl;
+            ws.getCell(r, 5).value = ':';
+            styleRange(r, 4, r, 6, {
+              font: { name: 'Arial', size: 8.5 },
+              border: thinBorder,
+              alignment: { vertical: 'middle' }
+            });
+            ws.getCell(r, 4).font = { name: 'Arial', size: 8.5, bold: true };
+            ws.getCell(r, 5).alignment = { horizontal: 'center', vertical: 'middle' };
+
+            if (m.mergeRightAddr) {
+              ws.mergeCells(r, 6, r + 1, 6);
+              ws.getCell(r, 6).value = m.rVal || '';
+              ws.getCell(r, 6).alignment = { vertical: 'top', wrapText: true };
+            } else if (idx !== 3) {
+              ws.getCell(r, 6).value = m.rVal || '';
+            }
+          });
+
+          ws.getRow(9).height = 6;
+
+          // Row 10 - 15: Grid Foto 2x3 dengan Gambar 100% Center
+          for (let i = 0; i < slots.length; i += 2) {
+            const pairIdx = i / 2;
+            const headerRow = 10 + pairIdx * 2;
+            const imgRow = headerRow + 1;
+
+            ws.getRow(headerRow).height = 19;
+            ws.getRow(imgRow).height = 178;
+
+            const leftSlot = slots[i];
+            const rightSlot = slots[i + 1];
+            const leftTitle = getSlotTitle(leftSlot);
+            const rightTitle = getSlotTitle(rightSlot);
+
+            // Header Judul Foto Kiri (A..C)
+            ws.mergeCells(headerRow, 1, headerRow, 3);
+            ws.getCell(headerRow, 1).value = leftTitle;
+            styleRange(headerRow, 1, headerRow, 3, {
+              font: { name: 'Arial', size: 10, bold: true },
+              fill: grayFill,
+              border: medBorder,
+              alignment: { horizontal: 'center', vertical: 'middle' }
+            });
+
+            // Header Judul Foto Kanan (D..F)
+            ws.mergeCells(headerRow, 4, headerRow, 6);
+            ws.getCell(headerRow, 4).value = rightTitle;
+            styleRange(headerRow, 4, headerRow, 6, {
+              font: { name: 'Arial', size: 10, bold: true },
+              fill: grayFill,
+              border: medBorder,
+              alignment: { horizontal: 'center', vertical: 'middle' }
+            });
+
+            // Kotak Gambar Kiri (A..C)
+            ws.mergeCells(imgRow, 1, imgRow, 3);
+            styleRange(imgRow, 1, imgRow, 3, {
+              border: medBorder,
+              alignment: { horizontal: 'center', vertical: 'middle' }
+            });
+
+            // Kotak Gambar Kanan (D..F)
+            ws.mergeCells(imgRow, 4, imgRow, 6);
+            styleRange(imgRow, 4, imgRow, 6, {
+              border: medBorder,
+              alignment: { horizontal: 'center', vertical: 'middle' }
+            });
+
+            // Sisipkan Gambar Kiri 100% Center di dalam [Col 1..3, Row imgRow]
+            if (s.photos[leftSlot.id]) {
+              await addCenteredImageToRange(wb, ws, s.photos[leftSlot.id], 1, imgRow, 3, imgRow, 12);
+            } else {
+              ws.getCell(imgRow, 1).value = `[Belum ada foto: ${leftTitle}]`;
+              ws.getCell(imgRow, 1).font = { name: 'Arial', size: 9, italic: true, color: { argb: 'FF9CA3AF' } };
+            }
+
+            // Sisipkan Gambar Kanan 100% Center di dalam [Col 4..6, Row imgRow]
+            if (s.photos[rightSlot.id]) {
+              await addCenteredImageToRange(wb, ws, s.photos[rightSlot.id], 4, imgRow, 6, imgRow, 12);
+            } else {
+              ws.getCell(imgRow, 4).value = `[Belum ada foto: ${rightTitle}]`;
+              ws.getCell(imgRow, 4).font = { name: 'Arial', size: 9, italic: true, color: { argb: 'FF9CA3AF' } };
+            }
+          }
+        };
+
+        await buildDocumentationSheet('DOKUMENTASI HAL 1', PHOTO_SLOTS_P2);
+        await buildDocumentationSheet('DOKUMENTASI HAL 2', PHOTO_SLOTS_P3);
+
+        // Generate & Download .xlsx
+        const buffer = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+
+        const safeSiteId = (s.siteIdTp || 'SITE').replace(/[^a-zA-Z0-9-_]/g, '_');
+        const safeSiteName = (s.siteNameTp || 'ATP_NMS').replace(/[^a-zA-Z0-9-_]/g, '_');
+        saveAs(blob, `DOC_ATP_NMS_${safeSiteId}_${safeSiteName}.xlsx`);
+
+        showToast('File Excel (.xlsx) berhasil di-export! Tanda tangan, cap & foto 100% center.', 'success');
+      } catch (err) {
+        console.error('Gagal export Excel:', err);
+        showToast('Terjadi kesalahan saat membuat file Excel: ' + err.message, 'error');
+      }
+    }
+
+    // =========================================================================
+    // 8. TOAST NOTIFICATIONS & CONFIRM MODAL
+    // =========================================================================
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+
+      const styles = {
+        success: 'bg-emerald-950/95 border-emerald-500/50 text-emerald-200',
+        error: 'bg-rose-950/95 border-rose-500/50 text-rose-200',
+        warning: 'bg-amber-950/95 border-amber-500/50 text-amber-200',
+        info: 'bg-slate-900/95 border-slate-700 text-slate-200'
+      };
+
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto px-4 py-3 rounded-xl border shadow-xl text-xs sm:text-sm font-medium backdrop-blur-md transition-all duration-300 ${styles[type] || styles.info}`;
+      toast.textContent = message;
+
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3600);
+    }
+
+    function openConfirmModal(title, message, onConfirm) {
+      const modal = document.getElementById('confirm-modal');
+      document.getElementById('confirm-title').textContent = title;
+      document.getElementById('confirm-message').textContent = message;
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      const close = () => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      };
+
+      document.getElementById('confirm-cancel').onclick = close;
+      document.getElementById('confirm-ok').onclick = () => {
+        close();
+        if (onConfirm) onConfirm();
+      };
+    }
+
+    // =========================================================================
+    // 9. INISIALISASI APLIKASI SAAT HALAMAN DIMUAT
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      generateDefaultSignatureAssets();
+      appState = getDefaultState();
+      loadSiteDatabase();
+      loadDraftFromStorage();
+
+      renderDynamicChecklistRows();
+      renderPhotoUploadCards();
+      bindAllInputs();
+      syncStateToInputs();
+      renderPreview();
+
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
